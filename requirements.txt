@@ -1,0 +1,16 @@
+fastapi>=0.116,<1
+uvicorn[standard]>=0.35,<1
+pydantic>=2.11,<3
+python-multipart>=0.0.20,<1
+requests>=2.32,<3
+beautifulsoup4>=4.13,<5
+selenium>=4.35,<5
+openai>=1.100,<3
+edge-tts>=7.2,<8
+Pillow>=11.3,<13
+numpy>=2.2,<3
+keyring>=25.6,<26
+platformdirs>=4.3,<5
+pytest>=8.4,<9
+httpx>=0.28,<1
+

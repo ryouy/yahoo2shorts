@@ -1,0 +1,13 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/data/
+data/app.db*
+data/secrets/
+data/runs/
+frontend/node_modules/
+frontend/dist/
+tools/bin/
+.DS_Store
