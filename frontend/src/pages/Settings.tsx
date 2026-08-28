@@ -1,6 +1,7 @@
 import { CheckCircle2, Eye, EyeOff, KeyRound, Save, Trash2, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import SystemCheck from './SystemCheck'
 
 interface Payload { values: Record<string, string | number | boolean>; openai: { registered: boolean; masked_key: string | null } }
 interface Props { onError: (message: string) => void; onNotice: (message: string) => void }
@@ -17,7 +18,8 @@ const groups = [
     ['thread_post_min', 'レス最低数', 'number'], ['thread_post_max', 'レス最大数', 'number'], ['post_max_chars', '最大文字数', 'number'], ['target_video_seconds', '目標時間（秒）', 'number'], ['hard_max_video_seconds', '最大時間（秒）', 'number'],
   ]},
   { name: 'Voice', description: 'edge-tts 音声', fields: [
-    ['voice_female', '女性Voice', 'text'], ['voice_male', '男性Voice', 'text'], ['voice_rate', 'Voice Rate', 'text'],
+    ['voice_1', 'Voice 1（Nanami）', 'text'], ['voice_2', 'Voice 2（Keita）', 'text'], ['voice_3', 'Voice 3（Aoi）', 'text'],
+    ['voice_4', 'Voice 4（Daichi）', 'text'], ['voice_5', 'Voice 5（Mayu）', 'text'], ['voice_6', 'Voice 6（Naoki）', 'text'], ['voice_rate', 'Voice Rate', 'text'],
   ]},
   { name: 'Video', description: '縦型動画とBGM', fields: [
     ['width', '幅', 'number'], ['height', '高さ', 'number'], ['fps', 'FPS', 'number'], ['comments_per_page', 'コメント/ページ', 'number'], ['bgm_enabled', 'BGM', 'boolean'], ['bgm_volume', 'BGM Volume', 'number'], ['bgm_bpm', 'BPM', 'number'],
@@ -47,9 +49,9 @@ export default function SettingsPage({ onError, onNotice }: Props) {
   }
   if (!data) return <div className="loading">設定を読み込み中…</div>
   return <>
-    <header className="page-head"><div><span className="eyebrow">PREFERENCES</span><h1>設定</h1><p>Notebookの定数を制作設定として管理します。</p></div><button className="primary" onClick={save}><Save size={18} /> すべて保存</button></header>
+    <header className="page-head compact-head"><div><span className="eyebrow">PREFERENCES</span><h1>設定</h1></div><button className="primary" onClick={save}><Save size={18} /> 保存</button></header>
     <section className="section-card key-card">
-      <div className="setting-heading"><span className="setting-icon green"><KeyRound /></span><div><h2>OpenAI</h2><p>キーはブラウザやSQLiteへ保存されません</p></div><span className={`connection ${data.openai.registered ? 'ok' : ''}`}>{data.openai.registered ? <><CheckCircle2 size={15} /> 登録済み</> : '未登録'}</span></div>
+      <div className="setting-heading"><span className="setting-icon green"><KeyRound /></span><div><h2>OpenAI</h2></div><span className={`connection ${data.openai.registered ? 'ok' : ''}`}>{data.openai.registered ? <><CheckCircle2 size={15} /> 登録済み</> : '未登録'}</span></div>
       <div className="key-content">
         {data.openai.registered && <div className="masked-key"><span>API Key</span><code>{data.openai.masked_key}</code></div>}
         <label className="field-label" htmlFor="api-key">{data.openai.registered ? '新しいキーへ変更' : 'API Key'}</label>
@@ -58,12 +60,13 @@ export default function SettingsPage({ onError, onNotice }: Props) {
       </div>
       <div className="setting-row single"><label>使用モデル<span>OpenAI Responses API</span></label><input value={String(data.values.openai_model)} onChange={e => update('openai_model', e.target.value)} /></div>
     </section>
-    {groups.map(group => <section className="section-card settings-group" key={group.name}>
-      <div className="setting-heading"><div><h2>{group.name}</h2><p>{group.description}</p></div></div>
+    {groups.map(group => <details className="settings-disclosure" key={group.name} open={group.name === 'General'}>
+      <summary><span>{group.name}</span><span>⌄</span></summary>
       <div className="settings-grid">{group.fields.map(([key, label, type]) => <div className="setting-row" key={key}>
         <label htmlFor={key}>{label}</label>
         {type === 'boolean' ? <button id={key} className={`toggle ${data.values[key] ? 'on' : ''}`} onClick={() => update(key, !data.values[key])}><span /></button> : <input id={key} type={type} step={key.includes('volume') ? '.001' : key.includes('seconds') ? '.1' : '1'} value={String(data.values[key])} onChange={e => update(key, type === 'number' ? Number(e.target.value) : e.target.value)} />}
       </div>)}</div>
-    </section>)}
+    </details>)}
+    <details className="settings-disclosure"><summary><span>システム</span><span>⌄</span></summary><SystemCheck embedded onError={onError} /></details>
   </>
 }

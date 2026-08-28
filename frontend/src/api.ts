@@ -14,6 +14,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     try { message = (await response.json()).detail || message } catch { /* ignore */ }
     throw new ApiError(message, response.status)
   }
+  if (response.status === 204) return undefined as T
   return response.json()
 }
 
@@ -23,4 +24,3 @@ export const api = {
   put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
-

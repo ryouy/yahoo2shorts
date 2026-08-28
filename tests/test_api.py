@@ -33,5 +33,40 @@ def test_project_crud_api(tmp_path):
             listed = client.get("/api/projects")
             assert listed.status_code == 200
             assert listed.json()["projects"][0]["id"] == project_id
+            deleted = client.delete(f"/api/projects/{project_id}")
+            assert deleted.status_code == 204
+            assert client.get(f"/api/projects/{project_id}").status_code == 404
+    finally:
+        db.path = original_path
+
+
+def test_project_api_rejects_invalid_input_and_duplicate_jobs(tmp_path):
+    original_path = db.path
+    db.path = tmp_path / "test.db"
+    try:
+        with TestClient(app) as client:
+            empty = client.post("/api/projects", json={"mode": "url", "urls": []})
+            assert empty.status_code == 422
+
+            invalid = client.post("/api/projects", json={"mode": "url", "urls": ["https://example.com/not-yahoo"]})
+            assert invalid.status_code == 422
+
+            created = client.post("/api/projects", json={
+                "mode": "url",
+                "urls": [
+                    "https://news.yahoo.co.jp/articles/test?source=one",
+                    "https://news.yahoo.co.jp/articles/test",
+                ],
+            })
+            assert created.status_code == 201
+            project_id = created.json()["id"]
+            assert client.get(f"/api/projects/{project_id}").json()["request_text"] == "https://news.yahoo.co.jp/articles/test"
+
+            article = repo.replace_candidates(project_id, [{"url": "https://news.yahoo.co.jp/articles/test", "title": "テスト記事"}])[0]
+            repo.approve_articles(project_id, [article["id"]])
+            repo.create_job("article_discovery", project_id)
+            blocked = client.post(f"/api/projects/{project_id}/generate-scripts")
+            assert blocked.status_code == 409
+            assert "処理中のジョブ" in blocked.json()["detail"]
     finally:
         db.path = original_path

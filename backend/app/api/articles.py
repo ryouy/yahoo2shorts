@@ -41,7 +41,7 @@ def save_script(article_id: int, payload: ScriptSave):
     repo.save_script(article_id, content, approved=False)
     if article.get("draft_path"):
         save_json(content, Path(article["draft_path"]))
-    repo.update_article(article_id, status="waiting_script_approval")
+    repo.update_article(article_id, status="waiting_script_approval", error=None)
     return repo.get_article(article_id)
 
 
@@ -58,7 +58,8 @@ def regenerate_script(article_id: int):
     except Exception as exc:
         raise HTTPException(400, str(exc)) from exc
     repo.save_script(article_id, content, approved=False)
-    save_json(content, Path(article["draft_path"]))
+    if article.get("draft_path"):
+        save_json(content, Path(article["draft_path"]))
     repo.update_article(article_id, status="waiting_script_approval", error=None)
     return repo.get_article(article_id)
 
@@ -73,6 +74,8 @@ def approve_script(article_id: int):
         validate_script(content, set(), db.settings(), editor=True)
     except Exception as exc:
         raise HTTPException(422, str(exc)) from exc
+    if not article.get("output_dir"):
+        raise HTTPException(409, "原稿の出力先がありません。原稿を再生成してください。")
     approved_path = Path(article["output_dir"]) / "approved_thread.json"
     save_json(content, approved_path)
     repo.save_script(article_id, content, approved=True)
@@ -94,4 +97,7 @@ def generate_video(article_id: int):
 @router.post("/articles/{article_id}/retry", status_code=202)
 def retry_article(article_id: int):
     article = _article(article_id)
-    return job_runner.start_scripts(article["project_id"], [article_id])
+    try:
+        return job_runner.start_scripts(article["project_id"], [article_id])
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc

@@ -23,15 +23,23 @@ def validate_script(script: dict, valid_comment_ids: set[str], settings: dict, *
     minimum, maximum = ((1, 20) if editor else (settings["thread_post_min"], settings["thread_post_max"]))
     if not minimum <= len(posts) <= maximum:
         raise ValidationError(f"コメントは{minimum}〜{maximum}件必要です。")
-    short_count = reply_count = 0
+    short_count = medium_count = long_count = reply_count = 0
+    lengths: list[int] = []
+    tones: set[str] = set()
     for index, post in enumerate(posts, 1):
         text = clean_text(post.get("text"))
         if not text:
             raise ValidationError(f"レス{index}が空です。")
         if not editor and len(text) > settings["post_max_chars"]:
             raise ValidationError(f"レス{index}が長すぎます（{len(text)}文字）。")
-        if 5 <= len(text) <= 15:
+        lengths.append(len(text))
+        tones.add(clean_text(post.get("tone")))
+        if 5 <= len(text) <= 12:
             short_count += 1
+        elif 13 <= len(text) <= 29:
+            medium_count += 1
+        elif 30 <= len(text) <= settings["post_max_chars"]:
+            long_count += 1
         reply_to = post.get("reply_to")
         if reply_to is not None:
             reply_count += 1
@@ -48,9 +56,20 @@ def validate_script(script: dict, valid_comment_ids: set[str], settings: dict, *
             raise ValidationError(f"レス{index}に未知のコメントIDがあります。")
     if not editor:
         if short_count < 2:
-            raise ValidationError("5〜15文字の短いレスが2件以上必要です。")
+            raise ValidationError("5〜12文字の一撃レスが2件以上必要です。")
+        if medium_count < 2 or long_count < 1:
+            raise ValidationError("中程度のレス2件と30文字以上の論点レス1件が必要です。")
+        if max(lengths, default=0) - min(lengths, default=0) < 20:
+            raise ValidationError("レスの長さに十分なばらつきがありません。")
+        if len(tones - {""}) < 4:
+            raise ValidationError("レスの口調に十分なばらつきがありません。")
         if not settings["min_reply_posts"] <= reply_count <= settings["max_reply_posts"]:
             raise ValidationError("返信レス数が設定範囲外です。")
+        intro_narration = clean_text(script.get("intro", {}).get("narration"))
+        outro_narration = clean_text(script.get("outro", {}).get("narration"))
+        if not 70 <= len(intro_narration) <= 105:
+            raise ValidationError("導入ナレーションは70〜105文字必要です。")
+        if not 35 <= len(outro_narration) <= 55:
+            raise ValidationError("アウトロナレーションは35〜55文字必要です。")
         if estimate_script_seconds(script) > 54:
             raise ValidationError("推定動画時間が長すぎます。")
-

@@ -47,6 +47,14 @@ class Repository:
         )
         return rows
 
+    def delete_project(self, project_id: str) -> bool:
+        """Delete a project and its related rows, but never interrupt an active job."""
+        with db.transaction() as connection:
+            if connection.execute("SELECT 1 FROM jobs WHERE project_id=? AND status IN ('queued','running') LIMIT 1", (project_id,)).fetchone():
+                raise ValueError("処理中のプロジェクトは削除できません。")
+            result = connection.execute("DELETE FROM projects WHERE id=?", (project_id,))
+            return result.rowcount > 0
+
     def update_project(self, project_id: str, **values) -> None:
         if not values:
             return
@@ -133,14 +141,38 @@ class Repository:
     def create_job(self, kind: str, project_id: str | None, article_id: int | None = None) -> dict:
         job_id = uuid.uuid4().hex
         now = utc_now()
-        db.execute(
-            "INSERT INTO jobs(id,project_id,article_id,kind,status,progress,stage,logs_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
-            (job_id, project_id, article_id, kind, "queued", 0, "待機中", "[]", now, now),
-        )
+        # This guard lives in the same write transaction as insertion.  The
+        # runner also checks earlier for a friendly error, but this closes the
+        # check-then-create race from simultaneous API requests.
+        with db.transaction() as connection:
+            if project_id and connection.execute(
+                "SELECT 1 FROM jobs WHERE project_id=? AND status IN ('queued','running') LIMIT 1",
+                (project_id,),
+            ).fetchone():
+                raise ValueError("このプロジェクトでは別の処理が進行中です。")
+            connection.execute(
+                "INSERT INTO jobs(id,project_id,article_id,kind,status,progress,stage,logs_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (job_id, project_id, article_id, kind, "queued", 0, "待機中", "[]", now, now),
+            )
         return self.get_job(job_id)
 
     def get_job(self, job_id: str) -> dict | None:
         job = db.fetchone("SELECT * FROM jobs WHERE id=?", (job_id,))
+        if job:
+            job["logs"] = json.loads(job.pop("logs_json") or "[]")
+        return job
+
+    def get_active_job(self, project_id: str) -> dict | None:
+        """Return the newest queued/running job for a project, if one exists.
+
+        Jobs mutate the same article and project records, so allowing them to run
+        concurrently would make their final status depend on timing.
+        """
+        job = db.fetchone(
+            "SELECT * FROM jobs WHERE project_id=? AND status IN ('queued','running') "
+            "ORDER BY created_at DESC LIMIT 1",
+            (project_id,),
+        )
         if job:
             job["logs"] = json.loads(job.pop("logs_json") or "[]")
         return job

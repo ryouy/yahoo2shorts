@@ -37,6 +37,12 @@ class AppSettings:
     hard_max_video_seconds: float = 59.5
     voice_female: str = "ja-JP-NanamiNeural"
     voice_male: str = "ja-JP-KeitaNeural"
+    voice_1: str = "ja-JP-NanamiNeural"
+    voice_2: str = "ja-JP-KeitaNeural"
+    voice_3: str = "ja-JP-AoiNeural"
+    voice_4: str = "ja-JP-DaichiNeural"
+    voice_5: str = "ja-JP-MayuNeural"
+    voice_6: str = "ja-JP-NaokiNeural"
     voice_rate: str = "+22%"
     width: int = 1080
     height: int = 1920
@@ -56,4 +62,3 @@ DEFAULT_SETTINGS = AppSettings().to_dict()
 def ensure_data_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
-

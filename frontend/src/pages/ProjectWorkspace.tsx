@@ -80,30 +80,30 @@ export default function ProjectWorkspace({ projectId, initialJob, onBack, onErro
     {project.error && <div className="error-banner">{project.error}</div>}
 
     {stage === 'articles' && <section>
-      <div className="stage-title"><div><span className="eyebrow">ARTICLE CANDIDATES</span><h2>記事候補</h2><p>Shortsに使うニュースを選択してください。</p></div><span className="selection-count"><b>{selected.length}</b>件選択中</span></div>
+      <div className="stage-title"><div><span className="eyebrow">ARTICLE CANDIDATES</span><h2>記事候補</h2></div><span className="selection-count"><b>{selected.length}</b>件選択中</span></div>
       {articles.length ? <div className="article-list">{articles.map(article => <ArticleCard key={article.id} article={article} checked={selected.includes(article.id)} onToggle={() => setSelected(selected.includes(article.id) ? selected.filter(id => id !== article.id) : [...selected, article.id])} />)}</div> :
-        <EmptyState icon={<Sparkles />} title={currentJob ? '記事を探しています' : '候補がありません'} description="候補収集が完了すると、ここにスコア付きの記事が表示されます。" />}
+        <EmptyState icon={<Sparkles />} title={currentJob ? '記事を探しています' : '候補がありません'} />}
       {!!articles.length && <div className="sticky-action"><span><Check size={18} /> {selected.length}件の記事を選択</span><button className="primary big" disabled={!selected.length || !!currentJob} onClick={approveArticles}>この{selected.length}記事で進む <ChevronRight size={18} /></button></div>}
     </section>}
 
     {stage === 'scripts' && <section>
-      <div className="stage-title"><div><span className="eyebrow">SCRIPT WORKBENCH</span><h2>原稿編集</h2><p>AI原稿を人の目で整え、承認します。</p></div></div>
+      <div className="stage-title"><div><span className="eyebrow">SCRIPT WORKBENCH</span><h2>原稿編集</h2></div></div>
       {scripted.length ? <div className="editor-layout"><aside className="article-tabs">{scripted.map((article, index) => <button className={active?.id === article.id ? 'active' : ''} key={article.id} onClick={() => setActiveArticle(article.id)}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{article.title}</b><small>{article.script?.approved ? '承認済み' : '編集待ち'} ・ {article.script?.estimated_seconds}s</small></div></button>)}</aside>
         <div className="editor-main">{active && <><div className="article-editor-head"><div><small>{active.source}</small><h2>{active.title}</h2></div><StatusBadge status={active.status} /></div>{active.error && <div className="retained-warning">{active.error}</div>}<ScriptEditor article={active} onChanged={load} onError={onError} onNotice={onNotice} /></>}</div></div> :
-        <EmptyState icon={<RefreshCw className={currentJob ? 'spin' : ''} />} title={currentJob ? '原稿を生成しています' : '原稿がありません'} description="本文とYahooコメントを取得し、記事ごとに原稿を生成します。失敗した記事は他の記事に影響しません。" />}
+        <EmptyState icon={<RefreshCw className={currentJob ? 'spin' : ''} />} title={currentJob ? '原稿を生成しています' : '原稿がありません'} />}
       {failedScripts.map(article => <div className="retry-row" key={article.id}><div><b>{article.title || article.url}</b><small>{article.error}</small></div><button className="secondary" disabled={!!currentJob} onClick={() => retryArticle(article)}><RefreshCw size={16} /> この記事だけ再試行</button></div>)}
       {scripted.some(a => a.script?.approved) && <div className="ready-strip"><div><Check /><span><b>承認済み原稿があります</b><small>動画生成へ進めます</small></span></div><button className="primary" onClick={() => setStage('videos')}>動画生成へ <ChevronRight size={17} /></button></div>}
     </section>}
 
     {stage === 'videos' && <section>
-      <div className="stage-title"><div><span className="eyebrow">RENDER & REVIEW</span><h2>動画生成</h2><p>承認済み原稿を縦型Shortsへ仕上げます。</p></div><div className="inline-actions"><button className="primary" disabled={!!currentJob || !articles.some(article => article.script?.approved)} onClick={startVideoBatch}><Play size={17} /> 承認済みを一括生成</button><button className="secondary" onClick={openFolder}><FolderOpen size={17} /> フォルダを開く</button><a className="button secondary" href={`/api/projects/${projectId}/zip`} onClick={e => { e.preventDefault(); fetch(`/api/projects/${projectId}/zip`, { method: 'POST' }).then(r => r.blob()).then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${projectId}.zip`; a.click(); URL.revokeObjectURL(a.href) }) }}><Download size={17} /> ZIP</a></div></div>
+      <div className="stage-title"><div><span className="eyebrow">RENDER & REVIEW</span><h2>動画生成</h2></div><div className="inline-actions"><button className="primary" disabled={!!currentJob || !articles.some(article => article.script?.approved)} onClick={startVideoBatch}><Play size={17} /> 承認済みを一括生成</button><button className="secondary" onClick={openFolder}><FolderOpen size={17} /> フォルダを開く</button><a className="button secondary" href={`/api/projects/${projectId}/zip`} onClick={e => { e.preventDefault(); fetch(`/api/projects/${projectId}/zip`, { method: 'POST' }).then(r => r.blob()).then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${projectId}.zip`; a.click(); URL.revokeObjectURL(a.href) }) }}><Download size={17} /> ZIP</a></div></div>
       <div className="video-grid">{articles.filter(article => article.script?.approved || article.video_path).map(article => <article className="video-card" key={article.id}>
         <div className="video-visual">{article.video_path ? <video controls preload="metadata" poster={`/api/articles/${article.id}/thumbnail`}><source src={`/api/articles/${article.id}/video`} type="video/mp4" /></video> : <div className="video-placeholder"><Video /><span>1080 × 1920</span></div>}</div>
         <div className="video-info"><StatusBadge status={article.status} /><h3>{article.title}</h3><p>{article.source}</p>{article.video_duration && <strong>{Number(article.video_duration).toFixed(1)}秒</strong>}{article.error && <div className="error-note">{article.error}</div>}
           <button className="primary full" disabled={!!currentJob} onClick={() => startVideo(article)}>{article.video_path ? <><RefreshCw size={17} /> 再生成</> : <><Play size={17} /> 動画を生成</>}</button>
         </div>
       </article>)}</div>
-      {!articles.some(article => article.script?.approved || article.video_path) && <EmptyState icon={<Video />} title="承認済み原稿がありません" description="原稿編集画面で原稿を承認すると動画生成が有効になります。" />}
+      {!articles.some(article => article.script?.approved || article.video_path) && <EmptyState icon={<Video />} title="承認済み原稿がありません" />}
     </section>}
   </>
 }

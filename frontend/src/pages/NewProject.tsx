@@ -1,4 +1,4 @@
-import { Bot, Link2, Minus, Plus, Search, Sparkles, X } from 'lucide-react'
+import { Check, ExternalLink, Link2, Minus, Plus, Search, Sparkles, X } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '../api'
 import type { Job, Project } from '../types'
@@ -6,7 +6,7 @@ import type { Job, Project } from '../types'
 interface Props { onCreated: (project: Project, job: Job) => void; onError: (message: string) => void }
 
 export default function NewProject({ onCreated, onError }: Props) {
-  const [mode, setMode] = useState<'url' | 'request' | 'auto'>('url')
+  const [mode, setMode] = useState<'url' | 'request'>('request')
   const [urls, setUrls] = useState([''])
   const [requestText, setRequestText] = useState('')
   const [count, setCount] = useState(3)
@@ -26,14 +26,13 @@ export default function NewProject({ onCreated, onError }: Props) {
 
   const canSubmit = mode === 'url' ? urls.some(url => url.trim()) : Boolean(requestText.trim())
 
-  return <>
-    <header className="page-head"><div><span className="eyebrow">NEW PROJECT</span><h1>新しいShortsを作成</h1><p>記事の指定方法を選び、候補を探します。</p></div></header>
-    <div className="mode-grid">
-      <button className={mode === 'url' ? 'mode-card active' : 'mode-card'} onClick={() => setMode('url')}><Link2 /><b>URLを直接指定</b><span>使いたいYahoo記事が決まっている</span></button>
-      <button className={mode === 'request' ? 'mode-card active' : 'mode-card'} onClick={() => setMode('request')}><Search /><b>自然言語で指定</b><span>テーマや人物、必要本数で探す</span></button>
-      <button className={mode === 'auto' ? 'mode-card active' : 'mode-card'} onClick={() => setMode('auto')}><Bot /><b>AIにおまかせ</b><span>盛り上がる記事を自動選定</span></button>
+  return <div className="new-project-page">
+    <header className="page-head compact-head"><div><span className="eyebrow">NEW PROJECT</span><h1>新しいShortsを作成</h1></div><div className="new-project-actions"><a className="yahoo-link" href="https://news.yahoo.co.jp/" target="_blank" rel="noreferrer">Yahoo!ニュース <ExternalLink size={14} /></a><span className="step-caption"><Check size={15} /> 1 / 3</span></div></header>
+    <div className="mode-grid mode-grid-two mode-switch">
+      <button className={mode === 'request' ? 'mode-card active' : 'mode-card'} onClick={() => setMode('request')}><Search /><b>テーマ検索</b></button>
+      <button className={mode === 'url' ? 'mode-card active' : 'mode-card'} onClick={() => setMode('url')}><Link2 /><b>URL指定</b></button>
     </div>
-    <section className="section-card form-card">
+    <section className="section-card form-card creation-form">
       {mode === 'url' ? <>
         <label className="field-label">Yahooニュースの記事URL</label>
         <div className="url-list">{urls.map((url, index) => <div className="url-row" key={index}>
@@ -42,13 +41,13 @@ export default function NewProject({ onCreated, onError }: Props) {
         </div>)}</div>
         <button className="subtle" onClick={() => setUrls([...urls, ''])}><Plus size={16} /> URLを追加</button>
       </> : <>
-        <label className="field-label" htmlFor="request">{mode === 'request' ? '探したい記事' : 'AIへの選定リクエスト'}</label>
-        <textarea id="request" rows={6} value={requestText} onChange={event => setRequestText(event.target.value)} placeholder={mode === 'request' ? '例：生成AI関連の記事を2本' : '例：直近のニュースから、コメント欄が活発で議論になりそうな記事を選んで'} />
-        <div className="count-row"><div><b>生成本数</b><small>候補として選定する記事数</small></div><div className="stepper"><button onClick={() => setCount(Math.max(1, count - 1))}><Minus size={16} /></button><b>{count}</b><button onClick={() => setCount(Math.min(10, count + 1))}><Plus size={16} /></button></div></div>
+        <label className="field-label" htmlFor="request">テーマ</label>
+        <textarea id="request" rows={6} value={requestText} onChange={event => setRequestText(event.target.value)} placeholder="例：生成AI関連の記事" />
+        <div className="count-row"><div><b>記事数</b></div><div className="stepper"><button onClick={() => setCount(Math.max(1, count - 1))}><Minus size={16} /></button><b>{count}</b><button onClick={() => setCount(Math.min(10, count + 1))}><Plus size={16} /></button></div></div>
       </>}
-      <button className="advanced-toggle" onClick={() => setAdvanced(!advanced)}>詳細な探索設定 <span>{advanced ? '−' : '+'}</span></button>
-      {advanced && <div className="advanced-note">検索元、最大経過時間、スコア配分は「設定 → Yahoo」から変更できます。</div>}
+      <button className="advanced-toggle" onClick={() => setAdvanced(!advanced)}>詳細設定 <span>{advanced ? '−' : '+'}</span></button>
+      {advanced && <div className="advanced-note">設定画面で変更できます。</div>}
       <div className="form-actions"><button className="primary big" disabled={busy || !canSubmit} onClick={submit}><Sparkles size={18} /> {busy ? '準備中…' : mode === 'url' ? '記事を取得' : '記事を探す'}</button></div>
     </section>
-  </>
+  </div>
 }

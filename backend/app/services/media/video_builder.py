@@ -13,21 +13,31 @@ from .renderer import render_frame, render_thumbnail
 from .tts import media_duration, require_binary, run_checked, synthesize_voice
 
 
+def _voice_pool(settings: dict) -> list[str]:
+    """Configured voice pool with a fallback for projects created before v6 voices."""
+    voices = [str(settings.get(f"voice_{index}") or "").strip() for index in range(1, 7)]
+    voices = list(dict.fromkeys(voice for voice in voices if voice))
+    return voices or [settings["voice_female"], settings["voice_male"]]
+
+
 def _voice(index: int, post: dict, assigned: dict[int, str], settings: dict) -> str:
-    default = settings["voice_male"] if index % 2 else settings["voice_female"]
+    pool = _voice_pool(settings)
+    default = pool[(index - 1) % len(pool)]
     parent = assigned.get(post.get("reply_to"))
-    if parent == settings["voice_male"]:
-        return settings["voice_female"]
-    if parent == settings["voice_female"]:
-        return settings["voice_male"]
+    if parent:
+        for offset in range(1, len(pool) + 1):
+            candidate = pool[(index - 1 + offset) % len(pool)]
+            if candidate != parent:
+                return candidate
     return default
 
 
 def prepare_tts(script: dict, audio_dir: Path, settings: dict, progress=None) -> tuple[dict, dict, list[str]]:
     working = json.loads(json.dumps(script, ensure_ascii=False))
     removed: list[str] = []
+    voices = _voice_pool(settings)
     intro_path = audio_dir / "intro.mp3"
-    synthesize_voice(working["intro"]["narration"], intro_path, voice=settings["voice_female"], rate=settings["voice_rate"])
+    synthesize_voice(working["intro"]["narration"], intro_path, voice=voices[0], rate=settings["voice_rate"])
     intro = {"path": intro_path, "duration": media_duration(intro_path) + .05}
     assigned, posts = {}, []
     total_posts = len(working["posts"])
@@ -39,7 +49,7 @@ def prepare_tts(script: dict, audio_dir: Path, settings: dict, progress=None) ->
         synthesize_voice(post["text"], path, voice=voice, rate=settings["voice_rate"])
         posts.append({"original_index": index, "post": post, "path": path, "voice": voice, "duration": media_duration(path) + .05})
     outro_path = audio_dir / "outro.mp3"
-    synthesize_voice(working["outro"]["narration"], outro_path, voice=settings["voice_female"], rate=settings["voice_rate"])
+    synthesize_voice(working["outro"]["narration"], outro_path, voice=voices[1 % len(voices)], rate=settings["voice_rate"])
     outro = {"path": outro_path, "duration": media_duration(outro_path) + .05}
     total = lambda items: intro["duration"] + sum(item["duration"] for item in items) + outro["duration"]
     while total(posts) > settings["target_video_seconds"] and len(posts) > 4:
@@ -145,4 +155,3 @@ def build_video(script: dict, output_dir: Path, settings: dict, progress=None) -
         raise RuntimeError(f"最終動画が上限を超えました（{duration:.2f}秒）。")
     if progress: progress(100, "生成完了")
     return {"video": final, "thumbnail": thumbnail, "duration": duration, "removed_posts": removed}
-

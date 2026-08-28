@@ -14,14 +14,14 @@ class ApiKeyInput(BaseModel):
 
 
 class ProjectCreate(BaseModel):
-    mode: Literal["url", "request", "auto"] = "url"
+    mode: Literal["url", "request"] = "url"
     request_text: str = ""
     urls: list[str] = Field(default_factory=list)
     article_count: int = Field(default=3, ge=1, le=10)
 
 
 class DiscoveryRequest(BaseModel):
-    mode: Literal["url", "request", "auto"]
+    mode: Literal["url", "request"]
     request_text: str = ""
     urls: list[str] = Field(default_factory=list)
     article_count: int = Field(default=3, ge=1, le=10)

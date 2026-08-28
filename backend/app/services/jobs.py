@@ -36,7 +36,14 @@ class JobRunner:
         repo.update_job(job_id, progress=progress, stage=stage, status="running", log=log or stage)
         self._log_file(project_id, log or stage)
 
+    @staticmethod
+    def _ensure_project_idle(project_id: str) -> None:
+        active = repo.get_active_job(project_id)
+        if active:
+            raise ValueError(f"処理中のジョブがあります（{active['stage']}）。完了してから再度実行してください。")
+
     def start_discovery(self, project_id: str, payload: dict) -> dict:
+        self._ensure_project_idle(project_id)
         job = repo.create_job("article_discovery", project_id)
         repo.update_project(project_id, status="searching_articles", error=None)
         self.pool.submit(self._discover, job["id"], project_id, payload)
@@ -63,6 +70,11 @@ class JobRunner:
             self._fail(job_id, project_id, exc)
 
     def start_scripts(self, project_id: str, article_ids: list[int] | None = None) -> dict:
+        self._ensure_project_idle(project_id)
+        selected = [item for item in repo.list_articles(project_id) if item["selected"]]
+        target_ids = set(article_ids or [item["id"] for item in selected])
+        if not target_ids or not target_ids <= {item["id"] for item in selected}:
+            raise ValueError("承認済みの記事だけ原稿を生成できます。")
         job = repo.create_job("script_generation", project_id, article_ids[0] if article_ids and len(article_ids) == 1 else None)
         repo.update_project(project_id, status="fetching_content", error=None)
         self.pool.submit(self._scripts, job["id"], project_id, article_ids)
@@ -114,10 +126,12 @@ class JobRunner:
                     )
                     self._log_file(project_id, f"記事{position}失敗: {traceback.format_exc()}")
             records_path = self._run_dir(project_id) / "draft_records.json"
-            if records_path.exists() and article_ids:
-                previous = load_json(records_path).get("records", [])
-                replaced = {item["article_id"] for item in records}
-                records = [item for item in previous if item.get("article_id") not in replaced] + records
+            previous = load_json(records_path).get("records", []) if records_path.exists() else []
+            # Keep a recoverable draft listed when a retry fails; only replace
+            # records that this run successfully regenerated.
+            records_by_article = {item.get("article_id"): item for item in previous if item.get("article_id")}
+            records_by_article.update({item["article_id"]: item for item in records})
+            records = list(records_by_article.values())
             save_json({"records": records}, records_path)
             status = "partial_error" if failures else "waiting_script_approval"
             repo.update_project(project_id, status=status, error=f"{failures}件失敗" if failures else None)
@@ -131,6 +145,7 @@ class JobRunner:
             raise ValueError("記事が見つかりません。")
         if not article.get("script") or not article["script"]["approved"]:
             raise ValueError("承認済み原稿だけ動画生成できます。")
+        self._ensure_project_idle(article["project_id"])
         job = repo.create_job("video_generation", article["project_id"], article_id)
         repo.update_article(article_id, status="generating_video", error=None)
         repo.update_project(article["project_id"], status="generating_video")
@@ -143,6 +158,7 @@ class JobRunner:
         eligible = [item for item in eligible if item and item.get("script") and item["script"]["approved"]]
         if not eligible:
             raise ValueError("承認済み原稿がありません。")
+        self._ensure_project_idle(project_id)
         job = repo.create_job("video_batch", project_id)
         repo.update_project(project_id, status="generating_video", error=None)
         self.pool.submit(self._video_batch, job["id"], project_id, [item["id"] for item in eligible])
@@ -189,7 +205,11 @@ class JobRunner:
             repo.update_job(job_id, progress=100, stage="生成完了", status="completed", log=f"動画時間 {result['duration']:.2f}秒")
         except Exception as exc:
             repo.update_article(article_id, status="error", error=f"{type(exc).__name__}: {exc}")
-            self._fail(job_id, project_id, exc)
+            errors = [a for a in repo.list_articles(project_id) if a["selected"] and a["status"] == "error"]
+            repo.update_project(project_id, status="partial_error", error=f"{len(errors)}件失敗")
+            detail = f"{type(exc).__name__}: {exc}"
+            repo.update_job(job_id, status="error", stage="エラー", error=detail, log=detail)
+            self._log_file(project_id, traceback.format_exc())
 
     def _fail(self, job_id: str, project_id: str, exc: Exception) -> None:
         detail = f"{type(exc).__name__}: {exc}"
