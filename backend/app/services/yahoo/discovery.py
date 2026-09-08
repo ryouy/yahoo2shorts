@@ -290,6 +290,7 @@ def discover_articles(*, mode: str, request_text: str, urls: list[str], article_
     shortlist = shortlist[:max(42, len(direct))]
     probe_driver = create_driver()
     detailed = []
+    min_comments = 30  # Require at least 30 comments for meaningful discussion
     try:
         for index, item in enumerate(shortlist, start=1):
             if progress:
@@ -305,6 +306,9 @@ def discover_articles(*, mode: str, request_text: str, urls: list[str], article_
                 if mode == "url":
                     continue
             count = _comment_count(probe_driver, item["url"])
+            # Skip articles with insufficient comments (unless directly specified by user)
+            if count < min_comments and mode != "url":
+                continue
             fresh, age = _freshness(detail.get("published_at"), settings["max_article_age_hours"])
             comment_score = min(100, 100 * math.log1p(count) / math.log1p(500)) if count else 0
             ai = ranking.get(item["url"], {}).get("score", item.get("intent_score", 0))
