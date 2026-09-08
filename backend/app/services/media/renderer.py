@@ -47,11 +47,10 @@ def _article_header(draw, script: dict, width: int, *, intro: bool = False) -> N
         box = (52, 250, width - 52, 1435)
         draw.rounded_rectangle((74, 278, width - 30, 1463), 52, fill=(69, 58, 128))
         draw.rounded_rectangle(box, 52, fill="white")
-        draw.rounded_rectangle((110, 310, 222, 442), 22, fill=(255, 225, 72))
-        # Only show source if provided (no Yahoo!ニュース fallback)
+        # Clean source display without icon
         source_text = clean_text(script.get("source") or "")[:25]
         if source_text:
-            draw.text((270, 333), source_text, font=font(28, True), fill=(100, 97, 112))
+            draw.text((110, 333), source_text, font=font(32, True), fill=(100, 97, 112))
         y = 530
         for line in _wrap(draw, script["intro"]["headline"], font(70, True), width - 210)[:5]:
             draw.text((110, y), line, font=font(70, True), fill=(30, 28, 38)); y += 92
@@ -112,7 +111,7 @@ def render_frame(script: dict, output: Path, settings: dict, *, visible: int = 0
             for index, line in enumerate(lines):
                 bbox = draw.textbbox((0, 0), line, font=font(54, True))
                 draw.text(((width - (bbox[2] - bbox[0])) / 2, 1535 + index * 70), line, font=font(54, True), fill=(35, 31, 48))
-    draw.text((45, height - 56), "コメント + ニュースをもとにAI再構成", font=font(22), fill="white")
+    draw.text((45, height - 56), "", font=font(22), fill="white")
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)
 
@@ -121,14 +120,9 @@ def render_thumbnail(script: dict, output: Path, settings: dict, *, background_p
     width, height = settings["width"], settings["height"]
     image = _background(width, height, background_path)
     draw = ImageDraw.Draw(image)
-    # Large title over an article visual: deliberately composed for the Shorts shelf.
-    draw.rectangle((0, 0, width, 300), fill=(12, 16, 17))
-    draw.rounded_rectangle((58, 66, 320, 148), 16, fill=LIME)
-    draw.text((86, 84), "NEWS SHORTS", font=font(28, True), fill=INK)
-    # Only show source if provided (remove Yahoo!ニュース fallback)
-    source_text = clean_text(script.get("source") or "")[:24]
-    if source_text:
-        draw.text((58, 194), source_text, font=font(31, True), fill="white")
+    # Simple dark header with clean typography
+    draw.rectangle((0, 0, width, 200), fill=(12, 16, 17))
+    draw.text((58, 66), "NEWS", font=font(48, True), fill=LIME)
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay)
     overlay_draw.rectangle((0, 720, width, height), fill=(0, 0, 0, 178))

@@ -128,13 +128,19 @@ def build_video(script: dict, output_dir: Path, settings: dict, progress=None) -
     intro_image, intro_clip = frames / "intro.png", assets / "intro.mp4"
     render_frame(fitted, intro_image, settings, intro=True, background_path=article_image)
     _static_clip(intro_image, audio["intro"]["path"], intro_clip, settings); clips.append(intro_clip)
+    # Track time for background switching (~10 seconds)
+    elapsed_time = audio["intro"]["duration"]
     for index, _post in enumerate(fitted["posts"], 1):
         if progress: progress(42 + int(33 * index / len(fitted["posts"])), f"コメント映像生成 {index}/{len(fitted['posts'])}")
         image, clip = frames / f"post_{index:03d}.png", assets / f"post_{index:03d}.mp4"
-        render_frame(fitted, image, settings, visible=index, background_path=article_image)
+        # Switch background every ~10 seconds for visual variety
+        bg = article_image if int(elapsed_time) % 20 < 10 else None
+        render_frame(fitted, image, settings, visible=index, background_path=bg)
         _static_clip(image, audio["posts"][index - 1]["path"], clip, settings); clips.append(clip)
+        elapsed_time += audio["posts"][index - 1]["duration"]
     outro_image, outro_clip = frames / "outro.png", assets / "outro.mp4"
-    render_frame(fitted, outro_image, settings, visible=len(fitted["posts"]), outro=True, background_path=article_image)
+    bg = article_image if int(elapsed_time) % 20 < 10 else None
+    render_frame(fitted, outro_image, settings, visible=len(fitted["posts"]), outro=True, background_path=bg)
     _static_clip(outro_image, audio["outro"]["path"], outro_clip, settings); clips.append(outro_clip)
     concat = assets / "concat.txt"
     concat.write_text("".join(f"file '{clip.as_posix()}'\n" for clip in clips), encoding="utf-8")
