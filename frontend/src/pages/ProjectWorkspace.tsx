@@ -101,7 +101,7 @@ export default function ProjectWorkspace({ projectId, initialJob, onBack, onErro
       <div className="video-grid">{articles.filter(article => article.script?.approved || article.video_path).map(article => <article className="video-card" key={article.id}>
         <div className="video-visual">{article.video_path ? <video controls preload="metadata" poster={`/api/articles/${article.id}/thumbnail`}><source src={`/api/articles/${article.id}/video`} type="video/mp4" /></video> : <div className="video-placeholder"><Video /><span>1080 × 1920</span></div>}</div>
         <div className="video-info"><StatusBadge status={article.status} /><h3>{article.title}</h3>{article.video_duration && <strong>{Number(article.video_duration).toFixed(1)}秒</strong>}{article.video_path && <a className="thumbnail-download" href={`/api/articles/${article.id}/thumbnail`} download>サムネイルを保存</a>}{article.error && <div className="error-note">{article.error}</div>}
-          <button className="primary full" disabled={!!currentJob} onClick={() => startVideo(article)}>{article.video_path ? <><RefreshCw size={17} /> 再うp</> : <><Play size={17} /> ぶち上げろ！</>}</button>
+          <button className="primary full" disabled={!!currentJob} onClick={() => startVideo(article)}>{article.video_path ? <><RefreshCw size={17} /> 再生成</> : <><Play size={17} /> 動画を生成</>}</button>
         </div>
       </article>)}</div>
       {!articles.some(article => article.script?.approved || article.video_path) && <EmptyState icon={<Video />} title="承認済み原稿がありません" />}
