@@ -48,7 +48,10 @@ def _article_header(draw, script: dict, width: int, *, intro: bool = False) -> N
         draw.rounded_rectangle((74, 278, width - 30, 1463), 52, fill=(69, 58, 128))
         draw.rounded_rectangle(box, 52, fill="white")
         draw.rounded_rectangle((110, 310, 222, 442), 22, fill=(255, 225, 72))
-        draw.text((270, 333), clean_text(script.get("source") or "Yahoo!ニュース")[:25], font=font(28, True), fill=(100, 97, 112))
+        # Only show source if provided (no Yahoo!ニュース fallback)
+        source_text = clean_text(script.get("source") or "")[:25]
+        if source_text:
+            draw.text((270, 333), source_text, font=font(28, True), fill=(100, 97, 112))
         y = 530
         for line in _wrap(draw, script["intro"]["headline"], font(70, True), width - 210)[:5]:
             draw.text((110, y), line, font=font(70, True), fill=(30, 28, 38)); y += 92
@@ -109,7 +112,7 @@ def render_frame(script: dict, output: Path, settings: dict, *, visible: int = 0
             for index, line in enumerate(lines):
                 bbox = draw.textbbox((0, 0), line, font=font(54, True))
                 draw.text(((width - (bbox[2] - bbox[0])) / 2, 1535 + index * 70), line, font=font(54, True), fill=(35, 31, 48))
-    draw.text((45, height - 56), "Yahooニュース + YahooコメントをもとにAI再構成", font=font(22), fill="white")
+    draw.text((45, height - 56), "コメント + ニュースをもとにAI再構成", font=font(22), fill="white")
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)
 
@@ -122,7 +125,10 @@ def render_thumbnail(script: dict, output: Path, settings: dict, *, background_p
     draw.rectangle((0, 0, width, 300), fill=(12, 16, 17))
     draw.rounded_rectangle((58, 66, 320, 148), 16, fill=LIME)
     draw.text((86, 84), "NEWS SHORTS", font=font(28, True), fill=INK)
-    draw.text((58, 194), clean_text(script.get("source") or "Yahoo!ニュース")[:24], font=font(31, True), fill="white")
+    # Only show source if provided (remove Yahoo!ニュース fallback)
+    source_text = clean_text(script.get("source") or "")[:24]
+    if source_text:
+        draw.text((58, 194), source_text, font=font(31, True), fill="white")
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay)
     overlay_draw.rectangle((0, 720, width, height), fill=(0, 0, 0, 178))
@@ -131,11 +137,21 @@ def render_thumbnail(script: dict, output: Path, settings: dict, *, background_p
     y = 780
     for line in _wrap(draw, script["intro"]["headline"], font(86, True), width - 110)[:5]:
         draw.text((55, y), line, font=font(86, True), fill="white", stroke_width=4, stroke_fill=(0, 0, 0)); y += 108
-    hot = next(iter(script.get("posts", [])), {}).get("text", "")
-    if hot:
-        draw.rounded_rectangle((55, min(y + 45, 1515), width - 55, min(y + 225, 1695)), 32, fill="white")
-        for index, line in enumerate(_wrap(draw, hot, font(39, True), width - 180)[:2]):
-            draw.text((90, min(y + 78, 1548) + index * 54), line, font=font(39, True), fill=INK)
+    # Display multiple comments for more eye-catching thumbnail
+    posts = script.get("posts", [])
+    comment_count = min(3, len(posts))  # Show up to 3 comments
+    for idx in range(comment_count):
+        post = posts[idx]
+        comment_text = post.get("text", "")
+        if comment_text:
+            accent_color = ACCENTS[idx % len(ACCENTS)]
+            comment_y = y + 45 + (idx * 180)
+            if comment_y + 160 > height - 100:
+                break
+            # Colored card for each comment
+            draw.rounded_rectangle((55, comment_y, width - 55, comment_y + 160), 24, fill=accent_color)
+            for index, line in enumerate(_wrap(draw, comment_text, font(35, True), width - 150)[:2]):
+                draw.text((85, comment_y + 28 + index * 48), line, font=font(35, True), fill="white", stroke_width=2, stroke_fill=(0, 0, 0))
     draw.text((58, height - 78), "yc2ys", font=font(28, True), fill=LIME)
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)
