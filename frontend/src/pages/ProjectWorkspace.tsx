@@ -97,14 +97,14 @@ export default function ProjectWorkspace({ projectId, initialJob, onBack, onErro
     </section>}
 
     {stage === 'videos' && <section>
-      <div className="stage-title"><div><span className="eyebrow">RENDER & REVIEW</span><h2>動画生成</h2></div><div className="inline-actions"><button className="primary" disabled={!!currentJob || !articles.some(article => article.script?.approved)} onClick={startVideoBatch}><Play size={17} /> 承認済みを一括生成</button><button className="secondary" onClick={openFolder}><FolderOpen size={17} /> フォルダを開く</button><a className="button secondary" href={`/api/projects/${projectId}/zip`} onClick={e => { e.preventDefault(); fetch(`/api/projects/${projectId}/zip`, { method: 'POST' }).then(r => r.blob()).then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${projectId}.zip`; a.click(); URL.revokeObjectURL(a.href) }) }}><Download size={17} /> ZIP</a></div></div>
+      <div className="stage-title"><div><span className="eyebrow">RENDER & REVIEW</span><h2>動画をぶち上げろ</h2></div><div className="inline-actions"><button className="primary" disabled={!!currentJob || !articles.some(article => article.script?.approved)} onClick={startVideoBatch}><Play size={17} /> 全部うpする！</button><button className="secondary" onClick={openFolder}><FolderOpen size={17} /> フォルダを開く</button><a className="button secondary" href={`/api/projects/${projectId}/zip`} onClick={e => { e.preventDefault(); fetch(`/api/projects/${projectId}/zip`, { method: 'POST' }).then(r => r.blob()).then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${projectId}.zip`; a.click(); URL.revokeObjectURL(a.href) }) }}><Download size={17} /> ZIP</a></div></div>
       <div className="video-grid">{articles.filter(article => article.script?.approved || article.video_path).map(article => <article className="video-card" key={article.id}>
         <div className="video-visual">{article.video_path ? <video controls preload="metadata" poster={`/api/articles/${article.id}/thumbnail`}><source src={`/api/articles/${article.id}/video`} type="video/mp4" /></video> : <div className="video-placeholder"><Video /><span>1080 × 1920</span></div>}</div>
         <div className="video-info"><StatusBadge status={article.status} /><h3>{article.title}</h3><p>{article.source}</p>{article.video_duration && <strong>{Number(article.video_duration).toFixed(1)}秒</strong>}{article.video_path && <a className="thumbnail-download" href={`/api/articles/${article.id}/thumbnail`} download>サムネイルを保存</a>}{article.error && <div className="error-note">{article.error}</div>}
-          <button className="primary full" disabled={!!currentJob} onClick={() => startVideo(article)}>{article.video_path ? <><RefreshCw size={17} /> 再生成</> : <><Play size={17} /> 動画を生成</>}</button>
+          <button className="primary full" disabled={!!currentJob} onClick={() => startVideo(article)}>{article.video_path ? <><RefreshCw size={17} /> 再うp</> : <><Play size={17} /> ぶち上げろ！</>}</button>
         </div>
       </article>)}</div>
-      {!articles.some(article => article.script?.approved || article.video_path) && <EmptyState icon={<Video />} title="承認済み原稿がありません" />}
+      {!articles.some(article => article.script?.approved || article.video_path) && <EmptyState icon={<Video />} title="原稿が まだ準備できてない" />}
     </section>}
   </>
 }
