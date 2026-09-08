@@ -125,7 +125,7 @@ def extract_article(html: str, url: str) -> dict:
     title = clean_text(node.get("headline") or node.get("name")) or _meta(soup, property="og:title")
     if not title and soup.find("h1"):
         title = clean_text(soup.find("h1").get_text(" ", strip=True))
-    source = _name(node.get("publisher")) or _meta(soup, property="og:site_name") or "Yahoo!ニュース"
+    source = _name(node.get("publisher")) or _meta(soup, property="og:site_name") or "ニュース"
     body_value = node.get("articleBody") or ""
     body = clean_text("\n".join(body_value) if isinstance(body_value, list) else body_value)
     if len(body) < 200:
@@ -201,7 +201,7 @@ def fetch_yahoo_article(url: str, *, timeout: int = 20) -> dict:
     finally:
         driver.quit()
     if not article["title"]:
-        article["title"] = re.sub(r"\s*[-｜|]\s*Yahoo!ニュース.*$", "", browser_title).strip()
+        article["title"] = re.sub(r"\s*[-｜|]\s*ニュース.*$", "", browser_title).strip()
     if not article["title"] or len(article["body"]) < 100:
         raise YahooFetchError("記事本文を十分に取得できませんでした。Yahoo側DOMが変更された可能性があります。")
     return article

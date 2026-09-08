@@ -15,7 +15,7 @@ def test_project_crud_api(tmp_path):
             project_id = created.json()["id"]
             articles = repo.replace_candidates(project_id, [{"url": "https://news.yahoo.co.jp/articles/test", "title": "テスト記事"}])
             repo.save_script(articles[0]["id"], {
-                "title": "テスト記事", "source": "Yahoo!ニュース", "url": articles[0]["url"],
+                "title": "テスト記事", "source": "ニュース", "url": articles[0]["url"],
                 "intro": {"headline": "見出し", "explainer": "説明", "narration": "ナレーション"},
                 "posts": [{"text": "コメント", "reply_to": None, "tone": "rough", "importance": 3, "source_comment_ids": ["c1"]}],
                 "outro": {"text": "意見は？", "narration": "意見を聞かせて"}, "estimated_seconds": 5.0,
