@@ -111,7 +111,7 @@ def render_frame(script: dict, output: Path, settings: dict, *, visible: int = 0
             for index, line in enumerate(lines):
                 bbox = draw.textbbox((0, 0), line, font=font(54, True))
                 draw.text(((width - (bbox[2] - bbox[0])) / 2, 1535 + index * 70), line, font=font(54, True), fill=(35, 31, 48))
-    draw.text((45, height - 56), "", font=font(22), fill="white")
+    # Credit text removed for cleaner design
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)
 
