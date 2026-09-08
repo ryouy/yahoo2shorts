@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from io import BytesIO
@@ -20,6 +21,7 @@ from ...storage.files import clean_text
 from .browser import GEO_MARKERS, assert_not_geo_blocked, browser_user_agent, create_driver
 
 ARTICLE_TYPES = {"Article", "NewsArticle", "ReportageNewsArticle", "AnalysisNewsArticle", "OpinionNewsArticle"}
+logger = logging.getLogger(__name__)
 
 
 def validate_yahoo_url(url: str) -> str:
@@ -148,7 +150,13 @@ def download_article_image(article: dict, output: Path, *, timeout: int = 15) ->
     if urlsplit(image_url).scheme not in {"http", "https"}:
         return None
     try:
-        response = requests.get(image_url, headers={"User-Agent": browser_user_agent()}, timeout=timeout)
+        # Some publisher CDNs occasionally return a broken gzip/deflate body.  Images
+        # do not benefit from HTTP compression, so request the original bytes instead.
+        response = requests.get(
+            image_url,
+            headers={"User-Agent": browser_user_agent(), "Accept-Encoding": "identity"},
+            timeout=timeout,
+        )
         response.raise_for_status()
         if len(response.content) > 12 * 1024 * 1024:
             return None
@@ -158,7 +166,11 @@ def download_article_image(article: dict, output: Path, *, timeout: int = 15) ->
             output.parent.mkdir(parents=True, exist_ok=True)
             image.save(output, "JPEG", quality=90, optimize=True)
         return output
-    except Exception:
+    except requests.exceptions.ContentDecodingError as exc:
+        logger.warning("Article image skipped because the server sent an invalid compressed response: %s", exc)
+        return None
+    except Exception as exc:
+        logger.info("Article image download skipped: %s", exc)
         return None
 
 
