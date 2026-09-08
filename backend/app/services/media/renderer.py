@@ -122,7 +122,7 @@ def render_thumbnail(script: dict, output: Path, settings: dict, *, background_p
     draw = ImageDraw.Draw(image)
     # Simple dark header with clean typography
     draw.rectangle((0, 0, width, 200), fill=(12, 16, 17))
-    draw.text((58, 66), "NEWS", font=font(48, True), fill=LIME)
+    draw.text((58, 66), "NEWS", font=font(48, True), fill="white")
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay)
     overlay_draw.rectangle((0, 720, width, height), fill=(0, 0, 0, 178))
@@ -139,13 +139,31 @@ def render_thumbnail(script: dict, output: Path, settings: dict, *, background_p
         comment_text = post.get("text", "")
         if comment_text:
             accent_color = ACCENTS[idx % len(ACCENTS)]
-            comment_y = y + 45 + (idx * 180)
-            if comment_y + 160 > height - 100:
+            # Adjust font size based on comment length for better readability
+            text_length = len(clean_text(comment_text))
+            if text_length > 30:
+                font_size = 30
+                max_lines = 3
+                line_height = 42
+            elif text_length > 15:
+                font_size = 33
+                max_lines = 2
+                line_height = 48
+            else:
+                font_size = 37
+                max_lines = 2
+                line_height = 52
+
+            card_height = 100 + (max_lines - 1) * line_height
+            comment_y = y + 45 + (idx * (card_height + 20))
+            if comment_y + card_height > height - 100:
                 break
-            # Colored card for each comment
-            draw.rounded_rectangle((55, comment_y, width - 55, comment_y + 160), 24, fill=accent_color)
-            for index, line in enumerate(_wrap(draw, comment_text, font(35, True), width - 150)[:2]):
-                draw.text((85, comment_y + 28 + index * 48), line, font=font(35, True), fill="white", stroke_width=2, stroke_fill=(0, 0, 0))
+            # Larger, more eye-catching colored card for each comment
+            draw.rounded_rectangle((45, comment_y, width - 45, comment_y + card_height), 28, fill=accent_color)
+            text_y = comment_y + 30
+            for line in _wrap(draw, comment_text, font(font_size, True), width - 120)[:max_lines]:
+                draw.text((75, text_y), line, font=font(font_size, True), fill="white", stroke_width=3, stroke_fill=(0, 0, 0))
+                text_y += line_height
     draw.text((58, height - 78), "yc2ys", font=font(28, True), fill=LIME)
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)
