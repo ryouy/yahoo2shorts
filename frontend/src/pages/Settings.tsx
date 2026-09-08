@@ -47,6 +47,9 @@ export default function SettingsPage({ onError, onNotice }: Props) {
     if (!confirm('登録済みのOpenAI APIキーを削除しますか？')) return
     try { const openai = await api.delete<Payload['openai']>('/settings/openai-key'); setData(data && { ...data, openai }); onNotice('APIキーを削除しました。') } catch (e) { onError(e instanceof Error ? e.message : String(e)) }
   }
+  const restartBackend = async () => {
+    try { await api.post<{ ok: boolean }>('/restart'); onNotice('バックエンドを再起動しています…') } catch (e) { onError(e instanceof Error ? e.message : String(e)) }
+  }
   if (!data) return <div className="loading">設定を読み込み中…</div>
   return <>
     <header className="page-head compact-head"><div><span className="eyebrow">PREFERENCES</span><h1>設定</h1></div><button className="primary" onClick={save}><Save size={18} /> 保存</button></header>
@@ -59,6 +62,10 @@ export default function SettingsPage({ onError, onNotice }: Props) {
         <div className="inline-actions"><button className="primary" disabled={!apiKey} onClick={saveKey}><Save size={16} /> 保存</button>{data.openai.registered && <><button className="secondary" disabled={testing} onClick={test}><Zap size={16} /> {testing ? '確認中…' : '接続テスト'}</button><button className="danger-button" onClick={removeKey}><Trash2 size={16} /> 削除</button></>}</div>
       </div>
       <div className="setting-row single"><label>使用モデル<span>OpenAI Responses API</span></label><input value={String(data.values.openai_model)} onChange={e => update('openai_model', e.target.value)} /></div>
+    </section>
+    <section className="section-card">
+      <div className="setting-heading"><h2>サーバー</h2></div>
+      <div style={{ padding: '16px' }}><button className="secondary" onClick={restartBackend}>🔄 バックエンドを再起動</button></div>
     </section>
     {groups.map(group => <details className="settings-disclosure" key={group.name} open={group.name === 'General'}>
       <summary><span>{group.name}</span><span>⌄</span></summary>

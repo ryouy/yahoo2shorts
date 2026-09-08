@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -42,6 +44,23 @@ def app_error_handler(_request: Request, exc: AppError):
 @app.get("/api/health")
 def health():
     return {"ok": True, "app": "Yahoo Shorts Studio"}
+
+
+@app.post("/api/restart")
+def restart_server(request: Request):
+    """Restart the backend server (localhost only)"""
+    client_host = request.client.host if request.client else ""
+    if client_host not in ("127.0.0.1", "localhost"):
+        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+
+    # Schedule restart in background
+    def do_restart():
+        import time
+        time.sleep(1)
+        os.execv(sys.executable, [sys.executable, "-m", "uvicorn", "backend.app.main:app", "--host", "127.0.0.1", "--port", "8000"])
+
+    subprocess.Popen([sys.executable, "-c", "import time, os, sys; time.sleep(1); os.execv(sys.executable, [sys.executable, '-m', 'uvicorn', 'backend.app.main:app', '--host', '127.0.0.1', '--port', '8000'])"])
+    return {"ok": True, "message": "Restarting server..."}
 
 
 for router in (settings.router, projects.router, articles.router, jobs.router, artifacts.router):
