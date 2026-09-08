@@ -140,3 +140,9 @@ def open_project_folder(project_id: str):
         raise HTTPException(404, "成果物フォルダが見つかりません。")
     open_path(run_dir)
     return {"ok": True}
+
+
+@router.get("/history")
+def get_history():
+    """Get project history (alias for list_projects)"""
+    return {"projects": repo.list_projects()}
