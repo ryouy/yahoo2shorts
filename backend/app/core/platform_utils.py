@@ -13,6 +13,18 @@ def find_executable(name: str) -> str | None:
     if detected:
         return detected
 
+    # The desktop build ships imageio-ffmpeg's platform binary.  Prefer it
+    # before machine-wide locations so videos work without Homebrew/winget.
+    if name == "ffmpeg":
+        try:
+            import imageio_ffmpeg
+
+            bundled = Path(imageio_ffmpeg.get_ffmpeg_exe())
+            if bundled.is_file():
+                return str(bundled)
+        except (ImportError, OSError):
+            pass
+
     project_root = Path(__file__).resolve().parents[3]
     executable = f"{name}.exe" if platform.system() == "Windows" and not name.lower().endswith(".exe") else name
     candidates: list[Path] = [project_root / "tools" / "bin" / executable]

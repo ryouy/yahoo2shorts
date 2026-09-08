@@ -2,11 +2,17 @@
   "name": "yahoo-shorts-studio",
   "private": true,
   "version": "1.0.0",
+  "description": "Local-first Yahoo News Shorts production studio",
+  "author": "yc2ys",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "desktop:dev": "npm run build && node desktop/run-electron.cjs desktop/main.cjs",
+    "desktop:backend": "node desktop/build-backend.cjs",
+    "desktop:package": "npm run build && npm run desktop:backend && electron-builder"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -18,7 +24,25 @@
   "devDependencies": {
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "jp.yc2ys.app",
+    "productName": "yc2ys",
+    "asar": false,
+    "afterPack": "desktop/after-pack.cjs",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "desktop/**/*", "package.json"],
+    "extraResources": [{ "from": "../desktop/dist", "to": "server", "filter": ["yc2ys-server*"] }],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
   }
 }
-

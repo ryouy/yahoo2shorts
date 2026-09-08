@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { FilePlus2, Gauge, Settings } from 'lucide-react'
+import { ExternalLink, FilePlus2, Gauge, Settings } from 'lucide-react'
 
 export type Page = 'dashboard' | 'new' | 'settings' | 'project'
 
@@ -16,6 +16,7 @@ const items: { id: Page; label: string; icon: typeof Gauge }[] = [
 ]
 
 export default function Shell({ page, onNavigate, children }: Props) {
+  const isDesktop = navigator.userAgent.includes('Electron')
   return <div className="app-shell">
     <aside className="sidebar">
       <button className="brand" onClick={() => onNavigate('dashboard')}>
@@ -30,6 +31,9 @@ export default function Shell({ page, onNavigate, children }: Props) {
         })}
       </nav>
     </aside>
-    <main className="main-content">{children}</main>
+    <main className="main-content">
+      {isDesktop && <div className="desktop-toolbar"><span>ローカルサーバーで動作中</span><button className="desktop-browser-button" onClick={() => window.open(window.location.href, '_blank', 'noopener')}>ブラウザで開く <ExternalLink size={15} /></button></div>}
+      {children}
+    </main>
   </div>
 }

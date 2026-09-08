@@ -12,7 +12,7 @@ from ..storage.files import load_json, save_json, unique_article_dir
 from ..storage.repository import repo
 from .media.video_builder import build_video
 from .script.generator import generate_script
-from .yahoo.article_fetcher import fetch_yahoo_article
+from .yahoo.article_fetcher import download_article_image, fetch_yahoo_article
 from .yahoo.comment_fetcher import fetch_yahoo_comments, parse_yahoo_datetime
 from .yahoo.discovery import discover_articles
 
@@ -96,6 +96,9 @@ class JobRunner:
                     article = fetch_yahoo_article(selected["url"])
                     output_dir = unique_article_dir(self._run_dir(project_id), article["title"], article_id)
                     output_dir.mkdir(parents=True, exist_ok=True)
+                    image_path = download_article_image(article, output_dir / "article_image.jpg")
+                    if image_path:
+                        article["image_path"] = str(image_path)
                     article_path = output_dir / "article.json"; save_json(article, article_path)
                     self._update(job_id, project_id, base + span // 3, f"記事{position}: コメント取得")
                     comments = fetch_yahoo_comments(

@@ -26,9 +26,9 @@ export default function ProjectWorkspace({ projectId, initialJob, onBack, onErro
       const draft = value.articles.find(a => a.script)
       if (!activeArticle && draft) setActiveArticle(draft.id)
       const active = value.jobs.find(candidate => candidate.status === 'running' || candidate.status === 'queued')
-      if (active) setJob(active)
-      if (value.articles.some(article => article.script) || value.status === 'waiting_script_approval' || value.status === 'ready_for_video') setStage('scripts')
-      if (value.status === 'completed' || value.status === 'generating_video') setStage('videos')
+      setJob(active || value.jobs[0] || null)
+      if (value.articles.some(article => article.video_path || ['generating_video', 'completed'].includes(article.status)) || ['completed', 'partial_error', 'generating_video'].includes(value.status)) setStage('videos')
+      else if (value.articles.some(article => article.script) || value.status === 'waiting_script_approval' || value.status === 'ready_for_video') setStage('scripts')
     } catch (e) { onError(e instanceof Error ? e.message : String(e)) }
   }
   useEffect(() => { load() }, [projectId])
@@ -46,7 +46,8 @@ export default function ProjectWorkspace({ projectId, initialJob, onBack, onErro
   const articles = project?.articles || []
   const scripted = articles.filter(article => article.script)
   const active = scripted.find(article => article.id === activeArticle) || scripted[0]
-  const currentJob = job && (job.status === 'running' || job.status === 'queued' || job.status === 'error') ? job : null
+  const currentJob = job && (job.status === 'running' || job.status === 'queued') ? job : null
+  const visibleJob = currentJob || (job?.status === 'error' ? job : null)
   const completedVideos = articles.filter(article => article.video_path)
   const failedScripts = articles.filter(article => article.selected && article.status === 'error' && !article.script)
 
@@ -76,7 +77,7 @@ export default function ProjectWorkspace({ projectId, initialJob, onBack, onErro
       <button className={stage === 'scripts' ? 'active' : ''} disabled={!scripted.length && !currentJob} onClick={() => setStage('scripts')}><span>2</span><div><b>原稿編集</b><small>確認と承認</small></div></button><ChevronRight />
       <button className={stage === 'videos' ? 'active' : ''} disabled={!articles.some(a => ['ready_for_video', 'generating_video', 'completed'].includes(a.status)) && !completedVideos.length} onClick={() => setStage('videos')}><span>3</span><div><b>動画生成</b><small>生成とレビュー</small></div></button>
     </div>
-    {currentJob && <ProgressPanel job={currentJob} />}
+    {visibleJob && <ProgressPanel job={visibleJob} />}
     {project.error && <div className="error-banner">{project.error}</div>}
 
     {stage === 'articles' && <section>
@@ -99,7 +100,7 @@ export default function ProjectWorkspace({ projectId, initialJob, onBack, onErro
       <div className="stage-title"><div><span className="eyebrow">RENDER & REVIEW</span><h2>動画生成</h2></div><div className="inline-actions"><button className="primary" disabled={!!currentJob || !articles.some(article => article.script?.approved)} onClick={startVideoBatch}><Play size={17} /> 承認済みを一括生成</button><button className="secondary" onClick={openFolder}><FolderOpen size={17} /> フォルダを開く</button><a className="button secondary" href={`/api/projects/${projectId}/zip`} onClick={e => { e.preventDefault(); fetch(`/api/projects/${projectId}/zip`, { method: 'POST' }).then(r => r.blob()).then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${projectId}.zip`; a.click(); URL.revokeObjectURL(a.href) }) }}><Download size={17} /> ZIP</a></div></div>
       <div className="video-grid">{articles.filter(article => article.script?.approved || article.video_path).map(article => <article className="video-card" key={article.id}>
         <div className="video-visual">{article.video_path ? <video controls preload="metadata" poster={`/api/articles/${article.id}/thumbnail`}><source src={`/api/articles/${article.id}/video`} type="video/mp4" /></video> : <div className="video-placeholder"><Video /><span>1080 × 1920</span></div>}</div>
-        <div className="video-info"><StatusBadge status={article.status} /><h3>{article.title}</h3><p>{article.source}</p>{article.video_duration && <strong>{Number(article.video_duration).toFixed(1)}秒</strong>}{article.error && <div className="error-note">{article.error}</div>}
+        <div className="video-info"><StatusBadge status={article.status} /><h3>{article.title}</h3><p>{article.source}</p>{article.video_duration && <strong>{Number(article.video_duration).toFixed(1)}秒</strong>}{article.video_path && <a className="thumbnail-download" href={`/api/articles/${article.id}/thumbnail`} download>サムネイルを保存</a>}{article.error && <div className="error-note">{article.error}</div>}
           <button className="primary full" disabled={!!currentJob} onClick={() => startVideo(article)}>{article.video_path ? <><RefreshCw size={17} /> 再生成</> : <><Play size={17} /> 動画を生成</>}</button>
         </div>
       </article>)}</div>

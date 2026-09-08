@@ -2,30 +2,30 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from ...storage.files import clean_text
 from .fonts import font
 
-TOP = (255, 92, 174)
-BOTTOM = (81, 93, 244)
-ACCENTS = [(255, 78, 148), (63, 195, 246), (255, 190, 47), (112, 210, 130), (166, 107, 255)]
+ACCENTS = [(188, 255, 66), (255, 193, 63), (88, 210, 178), (178, 145, 255), (255, 121, 152)]
+INK = (22, 25, 29)
+LIME = (188, 255, 66)
 
 
-def _background(width: int, height: int, variant: int = 0) -> Image.Image:
-    top, bottom = np.array(TOP, dtype=float), np.array(BOTTOM, dtype=float)
-    blend = np.linspace(0, 1, height)[:, None, None]
-    pixels = np.repeat(top[None, None, :] * (1 - blend) + bottom[None, None, :] * blend, width, axis=1)
-    image = Image.fromarray(pixels.astype(np.uint8), "RGB")
+def _background(width: int, height: int, background_path: Path | int | None = None) -> Image.Image:
+    """Use the article's key visual while keeping foreground copy readable."""
+    if isinstance(background_path, Path) and background_path.is_file():
+        try:
+            with Image.open(background_path) as source:
+                image = ImageOps.fit(source.convert("RGB"), (width, height), method=Image.Resampling.LANCZOS, centering=(.5, .42))
+            image = image.filter(ImageFilter.GaussianBlur(3))
+            return Image.blend(image, Image.new("RGB", (width, height), (10, 14, 16)), .50)
+        except OSError:
+            pass
+    image = Image.new("RGB", (width, height), (19, 24, 25))
     draw = ImageDraw.Draw(image)
-    blobs = [(-160, 250, 300, 710, (255, 255, 255)), (780, 100, 1240, 560, (255, 232, 90)), (760, 1490, 1270, 2000, (105, 237, 255))]
-    shift = (variant % 3) * 230
-    for x1, y1, x2, y2, color in blobs:
-        yy1, yy2 = y1 + shift, y2 + shift
-        if yy1 > height:
-            yy1, yy2 = yy1 - height, yy2 - height
-        draw.ellipse((x1, yy1 - 200, x2, yy2 + 200), fill=color)
+    for y in range(0, height, 94):
+        draw.rectangle((0, y, width, y + 1), fill=(35, 43, 42))
     return image
 
 
@@ -52,7 +52,7 @@ def _article_header(draw, script: dict, width: int, *, intro: bool = False) -> N
         y = 530
         for line in _wrap(draw, script["intro"]["headline"], font(70, True), width - 210)[:5]:
             draw.text((110, y), line, font=font(70, True), fill=(30, 28, 38)); y += 92
-        draw.rounded_rectangle((110, y + 18, 310, y + 32), 7, fill=TOP); y += 68
+        draw.rounded_rectangle((110, y + 18, 310, y + 32), 7, fill=LIME); y += 68
         for line in _wrap(draw, script["intro"]["explainer"], font(43), width - 220)[:5]:
             draw.text((110, y), line, font=font(43), fill=(61, 58, 70)); y += 61
     else:
@@ -67,11 +67,11 @@ def _article_header(draw, script: dict, width: int, *, intro: bool = False) -> N
             draw.text((75, y), line, font=font(34), fill=(70, 67, 79)); y += 46
 
 
-def render_frame(script: dict, output: Path, settings: dict, *, visible: int = 0, intro: bool = False, outro: bool = False) -> None:
+def render_frame(script: dict, output: Path, settings: dict, *, visible: int = 0, intro: bool = False, outro: bool = False, background_path: Path | None = None) -> None:
     width, height = settings["width"], settings["height"]
     page_size = settings["comments_per_page"]
     page = max(0, (max(1, visible) - 1) // page_size)
-    image = _background(width, height, page)
+    image = _background(width, height, background_path)
     draw = ImageDraw.Draw(image)
     if intro:
         _article_header(draw, script, width, intro=True)
@@ -91,10 +91,9 @@ def render_frame(script: dict, output: Path, settings: dict, *, visible: int = 0
             draw.rounded_rectangle((x + 13, y + 16, width - 42, y + card_height + 16), 42, fill=(68, 56, 118))
             draw.rounded_rectangle((x, y, width - 55, y + card_height), 42, fill=(255, 255, 255))
             draw.rounded_rectangle((x, y, x + 24, y + card_height), 12, fill=ACCENTS[(absolute - 1) % len(ACCENTS)])
-            name = "匿名さん" if absolute % 3 else "ネット民"
-            label = f"返信 · レス{post.get('reply_to')}へ" if reply else name
-            draw.text((x + 54, y + 28), label, font=font(27, True), fill=(110, 106, 124))
-            ty = y + 88
+            if reply:
+                draw.text((x + 54, y + 28), "返信", font=font(27, True), fill=(110, 106, 124))
+            ty = y + (88 if reply else 42)
             for line in lines:
                 draw.text((x + 54, ty), line, font=text_font, fill=(29, 27, 36)); ty += 63
             y += card_height + 42
@@ -115,23 +114,28 @@ def render_frame(script: dict, output: Path, settings: dict, *, visible: int = 0
     image.save(output)
 
 
-def render_thumbnail(script: dict, output: Path, settings: dict) -> None:
+def render_thumbnail(script: dict, output: Path, settings: dict, *, background_path: Path | None = None) -> None:
     width, height = settings["width"], settings["height"]
-    image = _background(width, height, 1)
+    image = _background(width, height, background_path)
     draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((55, 170, width - 55, 1335), 58, fill="white")
-    draw.rounded_rectangle((95, 225, 235, 385), 26, fill=(255, 225, 72))
-    draw.text((280, 260), clean_text(script.get("source") or "Yahoo!ニュース")[:24], font=font(28, True), fill=(95, 91, 106))
-    y = 470
-    for line in _wrap(draw, script["intro"]["headline"], font(76, True), width - 190)[:6]:
-        draw.text((95, y), line, font=font(76, True), fill=(28, 26, 36)); y += 100
-    short_posts = sorted(script.get("posts", []), key=lambda post: len(clean_text(post.get("text"))))[:2]
-    y = 1420
-    for index, post in enumerate(short_posts):
-        draw.rounded_rectangle((70, y, width - 70, y + 170), 46, fill="white")
-        draw.rounded_rectangle((70, y, 94, y + 170), 12, fill=ACCENTS[index + 1])
-        for line_index, line in enumerate(_wrap(draw, post["text"], font(42, True), width - 230)[:2]):
-            draw.text((125, y + 38 + line_index * 56), line, font=font(42, True), fill=(28, 26, 36))
-        y += 200
+    # Large title over an article visual: deliberately composed for the Shorts shelf.
+    draw.rectangle((0, 0, width, 300), fill=(12, 16, 17))
+    draw.rounded_rectangle((58, 66, 320, 148), 16, fill=LIME)
+    draw.text((86, 84), "NEWS SHORTS", font=font(28, True), fill=INK)
+    draw.text((58, 194), clean_text(script.get("source") or "Yahoo!ニュース")[:24], font=font(31, True), fill="white")
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    overlay_draw.rectangle((0, 720, width, height), fill=(0, 0, 0, 178))
+    image = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
+    draw = ImageDraw.Draw(image)
+    y = 780
+    for line in _wrap(draw, script["intro"]["headline"], font(86, True), width - 110)[:5]:
+        draw.text((55, y), line, font=font(86, True), fill="white", stroke_width=4, stroke_fill=(0, 0, 0)); y += 108
+    hot = next(iter(script.get("posts", [])), {}).get("text", "")
+    if hot:
+        draw.rounded_rectangle((55, min(y + 45, 1515), width - 55, min(y + 225, 1695)), 32, fill="white")
+        for index, line in enumerate(_wrap(draw, hot, font(39, True), width - 180)[:2]):
+            draw.text((90, min(y + 78, 1548) + index * 54), line, font=font(39, True), fill=INK)
+    draw.text((58, height - 78), "yc2ys", font=font(28, True), fill=LIME)
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)

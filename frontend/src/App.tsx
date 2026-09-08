@@ -25,6 +25,7 @@ export default function App() {
   const loadProjects = () => api.get<{ projects: ProjectSummary[] }>('/projects').then(result => setProjects(result.projects)).catch(error => notify('error', error.message))
   useEffect(() => {
     loadProjects()
+    const refresh = window.setInterval(loadProjects, 2500)
     if (!location.hash) {
       api.get<{ openai: { registered: boolean } }>('/settings').then(result => {
         if (!result.openai.registered) navigate('settings')
@@ -32,7 +33,7 @@ export default function App() {
     }
     const listener = () => setRoute(routeFromHash())
     addEventListener('hashchange', listener)
-    return () => removeEventListener('hashchange', listener)
+    return () => { removeEventListener('hashchange', listener); window.clearInterval(refresh) }
   }, [])
   const navigate = (page: Page, projectId?: string) => { location.hash = page === 'project' ? `#/project/${projectId}` : `#/${page}` }
   const openProject = (id: string) => { setInitialJob(null); navigate('project', id) }

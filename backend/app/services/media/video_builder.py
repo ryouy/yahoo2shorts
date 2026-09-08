@@ -44,9 +44,10 @@ def prepare_tts(script: dict, audio_dir: Path, settings: dict, progress=None) ->
     for index, post in enumerate(working["posts"], 1):
         if progress:
             progress(12 + int(25 * index / max(1, total_posts)), f"TTS生成 {index}/{total_posts}")
-        voice = _voice(index, post, assigned, settings); assigned[index] = voice
+        voice = _voice(index, post, assigned, settings)
         path = audio_dir / f"post_{index:03d}.mp3"
-        synthesize_voice(post["text"], path, voice=voice, rate=settings["voice_rate"])
+        voice = synthesize_voice(post["text"], path, voice=voice, rate=settings["voice_rate"])
+        assigned[index] = voice
         posts.append({"original_index": index, "post": post, "path": path, "voice": voice, "duration": media_duration(path) + .05})
     outro_path = audio_dir / "outro.mp3"
     synthesize_voice(working["outro"]["narration"], outro_path, voice=voices[1 % len(voices)], rate=settings["voice_rate"])
@@ -121,18 +122,19 @@ def build_video(script: dict, output_dir: Path, settings: dict, progress=None) -
         if progress: progress(40, f"時間調整で削除: {text}")
     stem = safe_title_stem(fitted.get("title", output_dir.name), 20)
     thumbnail = output_dir / "thumbnail.png"
-    render_thumbnail(fitted, thumbnail, settings)
+    article_image = output_dir / "article_image.jpg"
+    render_thumbnail(fitted, thumbnail, settings, background_path=article_image)
     clips: list[Path] = []
     intro_image, intro_clip = frames / "intro.png", assets / "intro.mp4"
-    render_frame(fitted, intro_image, settings, intro=True)
+    render_frame(fitted, intro_image, settings, intro=True, background_path=article_image)
     _static_clip(intro_image, audio["intro"]["path"], intro_clip, settings); clips.append(intro_clip)
     for index, _post in enumerate(fitted["posts"], 1):
         if progress: progress(42 + int(33 * index / len(fitted["posts"])), f"コメント映像生成 {index}/{len(fitted['posts'])}")
         image, clip = frames / f"post_{index:03d}.png", assets / f"post_{index:03d}.mp4"
-        render_frame(fitted, image, settings, visible=index)
+        render_frame(fitted, image, settings, visible=index, background_path=article_image)
         _static_clip(image, audio["posts"][index - 1]["path"], clip, settings); clips.append(clip)
     outro_image, outro_clip = frames / "outro.png", assets / "outro.mp4"
-    render_frame(fitted, outro_image, settings, visible=len(fitted["posts"]), outro=True)
+    render_frame(fitted, outro_image, settings, visible=len(fitted["posts"]), outro=True, background_path=article_image)
     _static_clip(outro_image, audio["outro"]["path"], outro_clip, settings); clips.append(outro_clip)
     concat = assets / "concat.txt"
     concat.write_text("".join(f"file '{clip.as_posix()}'\n" for clip in clips), encoding="utf-8")

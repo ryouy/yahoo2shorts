@@ -30,8 +30,7 @@ def run_preflight(*, check_yahoo: bool = False, check_tts: bool = False) -> list
     checks = [
         {"name": "Python", "ok": sys.version_info >= (3, 11), "detail": sys.version.split()[0], "install": "Python 3.11以上をインストールしてください。"},
         _check("Chrome", find_chrome_binary, "Google Chrome または Chromiumをインストールしてください。"),
-        _check("ffmpeg", lambda: find_executable("ffmpeg") or (_ for _ in ()).throw(RuntimeError("未検出")), "brew install ffmpeg / winget install Gyan.FFmpeg"),
-        _check("ffprobe", lambda: find_executable("ffprobe") or (_ for _ in ()).throw(RuntimeError("未検出")), "ffmpegパッケージに含まれます。"),
+        _check("ffmpeg", lambda: find_executable("ffmpeg") or (_ for _ in ()).throw(RuntimeError("未検出")), "アプリを再インストールしてください。"),
         _check("Japanese Font", lambda: find_japanese_font(), "Noto Sans JPをインストールしてください。"),
         _check("edge-tts", lambda: importlib.metadata.version("edge-tts"), "pip install edge-tts"),
         _check("Output Directory", lambda: output_dir if output_dir.exists() and output_dir.is_dir() else (_ for _ in ()).throw(RuntimeError(f"未作成: {output_dir}")), "設定した成果物フォルダの権限を確認してください。"),

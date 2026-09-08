@@ -39,10 +39,10 @@ class AppSettings:
     voice_male: str = "ja-JP-KeitaNeural"
     voice_1: str = "ja-JP-NanamiNeural"
     voice_2: str = "ja-JP-KeitaNeural"
-    voice_3: str = "ja-JP-AoiNeural"
-    voice_4: str = "ja-JP-DaichiNeural"
-    voice_5: str = "ja-JP-MayuNeural"
-    voice_6: str = "ja-JP-NaokiNeural"
+    voice_3: str = "en-US-AvaMultilingualNeural"
+    voice_4: str = "en-US-AndrewMultilingualNeural"
+    voice_5: str = "en-US-EmmaMultilingualNeural"
+    voice_6: str = "en-US-BrianMultilingualNeural"
     voice_rate: str = "+22%"
     width: int = 1080
     height: int = 1920

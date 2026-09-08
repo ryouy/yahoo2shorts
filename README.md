@@ -39,6 +39,29 @@ Windowsまたは共通の起動方法:
 python run.py
 ```
 
+### デスクトップアプリ
+
+ブラウザを使わず、ローカルPC上のウィンドウアプリとして起動する場合:
+
+```bash
+cd frontend
+npm install
+npm run desktop:dev
+```
+
+配布用のmacOS / Windowsパッケージを作る場合は、Python依存関係を入れたあとに次を実行します。生成物は `frontend/release/` に出力されます。
+
+```bash
+python3 -m pip install -r requirements.txt
+cd frontend
+npm install
+npm run desktop:package
+```
+
+デスクトップ版は内部で `127.0.0.1` のみを使い、データはOSのアプリデータ領域に保存します。従来の `./start.sh` / `python run.py` によるブラウザ版もそのまま利用できます。
+
+Windows用インストーラーは、GitHub Actionsの **Build Windows desktop app** を手動実行するとArtifactsから取得できます。Windows上で直接ビルドする場合も、同じ `npm run desktop:package` を実行してください。
+
 ビルド済みFrontendがあれば `http://127.0.0.1:8000` を開きます。開発時は別ターミナルで次のようにも起動できます。
 
 ```bash

@@ -137,6 +137,20 @@ class Database:
                     "INSERT OR IGNORE INTO settings(key,value_json,updated_at) VALUES(?,?,?)",
                     (key, json.dumps(value, ensure_ascii=False), utc_now()),
                 )
+            # Retired Japanese voice IDs used by earlier desktop releases
+            # return empty audio. Replace only those old defaults; custom values
+            # remain intact and are still protected by TTS fallback at runtime.
+            retired_voices = {
+                "ja-JP-AoiNeural": "en-US-AvaMultilingualNeural",
+                "ja-JP-DaichiNeural": "en-US-AndrewMultilingualNeural",
+                "ja-JP-MayuNeural": "en-US-EmmaMultilingualNeural",
+                "ja-JP-NaokiNeural": "en-US-BrianMultilingualNeural",
+            }
+            for old_voice, new_voice in retired_voices.items():
+                connection.execute(
+                    "UPDATE settings SET value_json=?,updated_at=? WHERE key IN ('voice_1','voice_2','voice_3','voice_4','voice_5','voice_6') AND value_json=?",
+                    (json.dumps(new_voice, ensure_ascii=False), utc_now(), json.dumps(old_voice, ensure_ascii=False)),
+                )
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:

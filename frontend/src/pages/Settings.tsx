@@ -18,8 +18,8 @@ const groups = [
     ['thread_post_min', 'レス最低数', 'number'], ['thread_post_max', 'レス最大数', 'number'], ['post_max_chars', '最大文字数', 'number'], ['target_video_seconds', '目標時間（秒）', 'number'], ['hard_max_video_seconds', '最大時間（秒）', 'number'],
   ]},
   { name: 'Voice', description: 'edge-tts 音声', fields: [
-    ['voice_1', 'Voice 1（Nanami）', 'text'], ['voice_2', 'Voice 2（Keita）', 'text'], ['voice_3', 'Voice 3（Aoi）', 'text'],
-    ['voice_4', 'Voice 4（Daichi）', 'text'], ['voice_5', 'Voice 5（Mayu）', 'text'], ['voice_6', 'Voice 6（Naoki）', 'text'], ['voice_rate', 'Voice Rate', 'text'],
+    ['voice_1', 'Voice 1（Nanami / 日本語）', 'text'], ['voice_2', 'Voice 2（Keita / 日本語）', 'text'], ['voice_3', 'Voice 3（Ava / 多言語）', 'text'],
+    ['voice_4', 'Voice 4（Andrew / 多言語）', 'text'], ['voice_5', 'Voice 5（Emma / 多言語）', 'text'], ['voice_6', 'Voice 6（Brian / 多言語）', 'text'], ['voice_rate', 'Voice Rate', 'text'],
   ]},
   { name: 'Video', description: '縦型動画とBGM', fields: [
     ['width', '幅', 'number'], ['height', '高さ', 'number'], ['fps', 'FPS', 'number'], ['comments_per_page', 'コメント/ページ', 'number'], ['bgm_enabled', 'BGM', 'boolean'], ['bgm_volume', 'BGM Volume', 'number'], ['bgm_bpm', 'BPM', 'number'],

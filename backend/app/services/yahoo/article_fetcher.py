@@ -3,10 +3,13 @@ from __future__ import annotations
 import json
 import re
 import time
+from io import BytesIO
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image, ImageOps
 from requests.adapters import HTTPAdapter
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -78,6 +81,16 @@ def _meta(soup: BeautifulSoup, **attrs) -> str:
     return clean_text(tag.get("content", "")) if tag else ""
 
 
+def _image_url(value) -> str:
+    if isinstance(value, str):
+        return clean_text(value)
+    if isinstance(value, list):
+        return next((item for item in (_image_url(item) for item in value) if item), "")
+    if isinstance(value, dict):
+        return clean_text(value.get("url") or value.get("contentUrl"))
+    return ""
+
+
 def _dom_body(soup: BeautifulSoup) -> str:
     reject = re.compile(r"comment|related|recommend|ranking|share|sns|profile|author|navigation|footer|advert", re.I)
     best = ""
@@ -125,7 +138,28 @@ def extract_article(html: str, url: str) -> dict:
         "url": clean_text(canonical.get("href")) if canonical else url,
         "body": body,
         "published_at": clean_text(node.get("datePublished") or node.get("dateCreated")) or None,
+        "image_url": _image_url(node.get("image")) or _meta(soup, property="og:image"),
     }
+
+
+def download_article_image(article: dict, output: Path, *, timeout: int = 15) -> Path | None:
+    """Persist the article's own key visual for the generated video and thumbnail."""
+    image_url = clean_text(article.get("image_url"))
+    if urlsplit(image_url).scheme not in {"http", "https"}:
+        return None
+    try:
+        response = requests.get(image_url, headers={"User-Agent": browser_user_agent()}, timeout=timeout)
+        response.raise_for_status()
+        if len(response.content) > 12 * 1024 * 1024:
+            return None
+        with Image.open(BytesIO(response.content)) as source:
+            image = ImageOps.exif_transpose(source).convert("RGB")
+            image.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            image.save(output, "JPEG", quality=90, optimize=True)
+        return output
+    except Exception:
+        return None
 
 
 def fetch_yahoo_article(url: str, *, timeout: int = 20) -> dict:
@@ -159,4 +193,3 @@ def fetch_yahoo_article(url: str, *, timeout: int = 20) -> dict:
     if not article["title"] or len(article["body"]) < 100:
         raise YahooFetchError("記事本文を十分に取得できませんでした。Yahoo側DOMが変更された可能性があります。")
     return article
-

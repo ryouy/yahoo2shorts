@@ -9,5 +9,9 @@ data/secrets/
 data/runs/
 frontend/node_modules/
 frontend/dist/
+frontend/release/
+desktop/dist/
+desktop/.build/
+desktop/*.spec
 tools/bin/
 .DS_Store

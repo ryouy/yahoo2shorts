@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -46,6 +47,6 @@ def health():
 for router in (settings.router, projects.router, articles.router, jobs.router, artifacts.router):
     app.include_router(router, prefix="/api")
 
-frontend_dist = ROOT_DIR / "frontend" / "dist"
+frontend_dist = Path(os.getenv("YSS_FRONTEND_DIST", ROOT_DIR / "frontend" / "dist"))
 if frontend_dist.exists():
     app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
