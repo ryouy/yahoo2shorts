@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- The inset tile deliberately occupies 80% of the canvas for a calmer Dock presence. -->
+  <rect x="102" y="102" width="820" height="820" rx="196" fill="#16181D"/>
+  <path d="M374 364v130c0 76 46 126 117 126s117-50 117-126V364M491 620v102c0 75-44 122-112 122" fill="none" stroke="#F7F8FA" stroke-width="76" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="650" cy="347" r="31" fill="#BEF264"/>
+</svg>
