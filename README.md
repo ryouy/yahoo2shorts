@@ -2,7 +2,7 @@
 
 Yahoo!ニュースの記事とコメントから、AIで原稿を作り、縦型のYouTube Shortsを自動生成するアプリです。記事探索 → コメント取得 → 原稿生成 → 動画・サムネイル生成までを1つのアプリで行います。
 
-![アプリのスクリーンショット](docs/images/screenshot-dashboard.png)
+![アプリのスクリーンショット](docs/images/tp.png)
 
 ## できること
 
@@ -13,7 +13,7 @@ Yahoo!ニュースの記事とコメントから、AIで原稿を作り、縦型
 - BGMのアップロード＆ランダム割り当て
 - 記事選択から動画生成までワンボタンで実行する「一気通貫」モード
 
-![原稿編集画面](docs/images/screenshot-script-editor.png)
+![原稿編集画面](docs/images/gk.png)
 
 ## 必要環境
 
@@ -52,11 +52,15 @@ npm run desktop:dev       # 開発モードで起動
 npm run desktop:package   # 配布用アプリをビルド（frontend/release/ に出力）
 ```
 
+![デスクトップ](docs/images/icon.png)
+
 ## 初回設定
 
 1. 「設定」ページで OpenAI API Key を登録する
 2. 「接続テスト」で疎通確認する
 3. （任意）チャンネル名・BGM用フォルダなどを設定する
+
+![設定](docs/images/st.png)
 
 ## 使い方
 
@@ -65,7 +69,9 @@ npm run desktop:package   # 配布用アプリをビルド（frontend/release/ �
 3. 原稿を確認・編集して承認する
 4. 動画を生成し、プレビューして保存する
 
-![動画生成画面](docs/images/screenshot-video-generation.png)
+![ダッシュボード](docs/images/db.png)
+
+![動画生成画面](docs/images/gtd.png)
 
 ## 保存先
 
