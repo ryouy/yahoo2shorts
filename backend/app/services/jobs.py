@@ -7,11 +7,13 @@ from datetime import datetime
 from pathlib import Path
 
 from ..core.config import RUNS_DIR
+from ..core.exceptions import JobCancelledError
 from ..storage.database import db
 from ..storage.files import load_json, save_json, unique_article_dir
 from ..storage.repository import repo
 from .media.video_builder import build_video
 from .script.generator import generate_script
+from .script.validator import validate_script
 from .yahoo.article_fetcher import download_article_image, fetch_yahoo_article
 from .yahoo.comment_fetcher import fetch_yahoo_comments, parse_yahoo_datetime
 from .yahoo.discovery import discover_articles
@@ -33,6 +35,9 @@ class JobRunner:
         return root / project_id
 
     def _update(self, job_id: str, project_id: str, progress: int, stage: str, log: str | None = None) -> None:
+        current = repo.get_job(job_id)
+        if current and current["status"] == "cancelling":
+            raise JobCancelledError("ユーザーによりキャンセルされました。")
         repo.update_job(job_id, progress=progress, stage=stage, status="running", log=log or stage)
         self._log_file(project_id, log or stage)
 
@@ -84,6 +89,7 @@ class JobRunner:
         allowed = set(article_ids or [])
         articles = [item for item in repo.list_articles(project_id) if item["selected"] and (not allowed or item["id"] in allowed)]
         settings = db.settings(); failures = 0; records = []
+        video_mode = (repo.get_project(project_id) or {}).get("video_mode", "normal")
         try:
             for position, selected in enumerate(articles, 1):
                 base = int((position - 1) * 95 / max(1, len(articles)))
@@ -111,7 +117,7 @@ class JobRunner:
                         columns = ["comment_id", "comment_type", "parent_comment_id", "text", "posted_at", "empathy_count", "reply_count", "order_index"]
                         writer = csv.DictWriter(stream, fieldnames=columns, extrasaction="ignore"); writer.writeheader(); writer.writerows(comments)
                     self._update(job_id, project_id, base + 2 * span // 3, f"記事{position}: AI原稿生成")
-                    script = generate_script(article, comments, settings)
+                    script = generate_script(article, comments, settings, video_mode=video_mode)
                     draft_path = output_dir / "draft_thread.json"; save_json(script, draft_path)
                     repo.save_script(article_id, script)
                     repo.update_article(
@@ -120,6 +126,9 @@ class JobRunner:
                         draft_path=str(draft_path), status="waiting_script_approval", error=None,
                     )
                     records.append({"article_id": article_id, "title": article["title"], "output_dir": str(output_dir), "estimated_seconds": script["estimated_seconds"]})
+                except JobCancelledError:
+                    repo.update_article(article_id, status="waiting_script_approval" if had_script else "waiting_article_approval", error=None)
+                    raise
                 except Exception as exc:
                     failures += 1
                     repo.update_article(
@@ -140,7 +149,7 @@ class JobRunner:
             repo.update_project(project_id, status=status, error=f"{failures}件失敗" if failures else None)
             repo.update_job(job_id, progress=100, stage="原稿生成完了", status="completed", log=f"成功{len(records)}件 / 失敗{failures}件")
         except Exception as exc:
-            self._fail(job_id, project_id, exc)
+            self._fail(job_id, project_id, exc, cancelled_status="waiting_article_approval")
 
     def start_video(self, article_id: int) -> dict:
         article = repo.get_article(article_id)
@@ -169,6 +178,7 @@ class JobRunner:
 
     def _video_batch(self, job_id: str, project_id: str, article_ids: list[int]) -> None:
         failures = 0
+        video_mode = (repo.get_project(project_id) or {}).get("video_mode", "normal")
         for position, article_id in enumerate(article_ids, 1):
             article = repo.get_article(article_id)
             if not article or not article.get("script"):
@@ -179,10 +189,15 @@ class JobRunner:
             try:
                 repo.update_article(article_id, status="generating_video", error=None)
                 result = build_video(
-                    article["script"]["content"], Path(article["output_dir"]), db.settings(),
+                    article["script"]["content"], Path(article["output_dir"]), db.settings(), video_mode=video_mode, bgm_track=article.get("bgm_track"),
                     progress=lambda percent, stage, b=base, s=span, p=position: self._update(job_id, project_id, min(99, int(b + percent * s / 100)), f"記事{p}/{len(article_ids)}: {stage}"),
                 )
                 repo.update_article(article_id, status="completed", video_path=str(result["video"]), thumbnail_path=str(result["thumbnail"]), video_duration=result["duration"], error=None)
+            except JobCancelledError:
+                repo.update_article(article_id, status="ready_for_video", error=None)
+                repo.update_job(job_id, status="cancelled", stage="キャンセル済み", error=None, log="ユーザーによりキャンセルされました。")
+                repo.update_project(project_id, status="ready_for_video", error=None)
+                return
             except Exception as exc:
                 failures += 1
                 repo.update_article(article_id, status="error", error=f"{type(exc).__name__}: {exc}")
@@ -194,10 +209,11 @@ class JobRunner:
         article = repo.get_article(article_id)
         assert article and article["script"]
         project_id = article["project_id"]
+        video_mode = (repo.get_project(project_id) or {}).get("video_mode", "normal")
         try:
             output_dir = Path(article["output_dir"])
             result = build_video(
-                article["script"]["content"], output_dir, db.settings(),
+                article["script"]["content"], output_dir, db.settings(), video_mode=video_mode, bgm_track=article.get("bgm_track"),
                 progress=lambda percent, stage: self._update(job_id, project_id, percent, stage),
             )
             repo.update_article(article_id, status="completed", video_path=str(result["video"]), thumbnail_path=str(result["thumbnail"]), video_duration=result["duration"], error=None)
@@ -206,6 +222,10 @@ class JobRunner:
             if not remaining:
                 repo.update_project(project_id, status="partial_error" if errors else "completed")
             repo.update_job(job_id, progress=100, stage="生成完了", status="completed", log=f"動画時間 {result['duration']:.2f}秒")
+        except JobCancelledError:
+            repo.update_article(article_id, status="ready_for_video", error=None)
+            repo.update_job(job_id, status="cancelled", stage="キャンセル済み", error=None, log="ユーザーによりキャンセルされました。")
+            repo.update_project(project_id, status="ready_for_video", error=None)
         except Exception as exc:
             repo.update_article(article_id, status="error", error=f"{type(exc).__name__}: {exc}")
             errors = [a for a in repo.list_articles(project_id) if a["selected"] and a["status"] == "error"]
@@ -214,7 +234,139 @@ class JobRunner:
             repo.update_job(job_id, status="error", stage="エラー", error=detail, log=detail)
             self._log_file(project_id, traceback.format_exc())
 
-    def _fail(self, job_id: str, project_id: str, exc: Exception) -> None:
+    def start_full_pipeline(self, project_id: str, article_ids: list[int]) -> dict:
+        self._ensure_project_idle(project_id)
+        if not article_ids:
+            raise ValueError("記事を選択してください。")
+        project = repo.get_project(project_id)
+        if not project:
+            raise ValueError("Projectが見つかりません。")
+        available = {item["id"] for item in project["articles"]}
+        if not set(article_ids) <= available:
+            raise ValueError("別Projectの記事が含まれています。")
+        repo.approve_articles(project_id, article_ids)
+        job = repo.create_job("full_pipeline", project_id)
+        repo.update_project(project_id, status="fetching_content", error=None)
+        self.pool.submit(self._full_pipeline, job["id"], project_id, article_ids)
+        return job
+
+    def _full_pipeline(self, job_id: str, project_id: str, article_ids: list[int]) -> None:
+        """Article approval -> script generation -> auto-approval -> video generation,
+        run back to back with no manual review in between. BGM is assigned at random
+        from the uploaded tracks (build_video picks one when bgm_track is None)."""
+        settings = db.settings()
+        video_mode = (repo.get_project(project_id) or {}).get("video_mode", "normal")
+        articles = [item for item in repo.list_articles(project_id) if item["id"] in article_ids]
+        script_failures = 0
+        succeeded_ids: list[int] = []
+        try:
+            for position, selected in enumerate(articles, 1):
+                base = int((position - 1) * 40 / max(1, len(articles)))
+                span = max(1, int(40 / max(1, len(articles))))
+                article_id = selected["id"]
+                try:
+                    self._update(job_id, project_id, base + 2, f"記事{position}: 本文取得", selected["url"])
+                    repo.update_article(article_id, status="fetching_content", error=None)
+                    article = fetch_yahoo_article(selected["url"])
+                    output_dir = unique_article_dir(self._run_dir(project_id), article["title"], article_id)
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    image_path = download_article_image(article, output_dir / "article_image.jpg")
+                    if image_path:
+                        article["image_path"] = str(image_path)
+                    article_path = output_dir / "article.json"; save_json(article, article_path)
+                    self._update(job_id, project_id, base + span // 3, f"記事{position}: コメント取得")
+                    comments = fetch_yahoo_comments(
+                        selected["url"], limit=settings["comment_limit"], include_replies=settings["include_replies"],
+                        max_pages=settings["max_comment_pages"], published_at=parse_yahoo_datetime(article.get("published_at") or ""),
+                        progress=lambda stage, _p, _t: self._log_file(project_id, stage),
+                    )
+                    comments_path = output_dir / "comments.csv"
+                    with comments_path.open("w", encoding="utf-8-sig", newline="") as stream:
+                        columns = ["comment_id", "comment_type", "parent_comment_id", "text", "posted_at", "empathy_count", "reply_count", "order_index"]
+                        writer = csv.DictWriter(stream, fieldnames=columns, extrasaction="ignore"); writer.writeheader(); writer.writerows(comments)
+                    self._update(job_id, project_id, base + 2 * span // 3, f"記事{position}: AI原稿生成")
+                    script = generate_script(article, comments, settings, video_mode=video_mode)
+                    draft_path = output_dir / "draft_thread.json"; save_json(script, draft_path)
+                    repo.save_script(article_id, script)
+                    repo.update_article(
+                        article_id, title=article["title"], source=article["source"], published_at=article.get("published_at"),
+                        comment_count=len(comments), output_dir=str(output_dir), article_path=str(article_path), comments_path=str(comments_path),
+                        draft_path=str(draft_path), status="waiting_script_approval", error=None,
+                    )
+                    succeeded_ids.append(article_id)
+                except JobCancelledError:
+                    repo.update_article(article_id, status="waiting_article_approval", error=None)
+                    raise
+                except Exception as exc:
+                    script_failures += 1
+                    repo.update_article(article_id, status="error", error=f"{type(exc).__name__}: {exc}")
+                    self._log_file(project_id, f"記事{position}失敗: {traceback.format_exc()}")
+
+            if not succeeded_ids:
+                repo.update_project(project_id, status="partial_error", error=f"{script_failures}件失敗")
+                repo.update_job(job_id, progress=100, stage="原稿生成に失敗", status="completed", log="原稿を生成できた記事がありません。")
+                return
+
+            self._update(job_id, project_id, 42, "原稿を自動承認")
+            approved_ids = []
+            for article_id in succeeded_ids:
+                article = repo.get_article(article_id)
+                if not article or not article.get("script"):
+                    continue
+                content = article["script"]["content"]
+                try:
+                    validate_script(content, set(), settings, editor=True, video_mode=video_mode)
+                except Exception:
+                    continue
+                if not article.get("output_dir"):
+                    continue
+                approved_path = Path(article["output_dir"]) / "approved_thread.json"
+                save_json(content, approved_path)
+                repo.save_script(article_id, content, approved=True)
+                repo.update_article(article_id, status="ready_for_video", approved_path=str(approved_path))
+                approved_ids.append(article_id)
+
+            if not approved_ids:
+                repo.update_project(project_id, status="waiting_script_approval", error=None)
+                repo.update_job(job_id, progress=100, stage="原稿の自動承認に失敗", status="completed", log="承認できる原稿がありません。手動で確認してください。")
+                return
+
+            repo.update_project(project_id, status="generating_video", error=None)
+            video_failures = 0
+            for position, article_id in enumerate(approved_ids, 1):
+                article = repo.get_article(article_id)
+                base = 50 + int((position - 1) * 50 / len(approved_ids))
+                span = 50 / len(approved_ids)
+                try:
+                    repo.update_article(article_id, status="generating_video", error=None)
+                    result = build_video(
+                        article["script"]["content"], Path(article["output_dir"]), settings, video_mode=video_mode, bgm_track=None,
+                        progress=lambda percent, stage, b=base, s=span, p=position: self._update(job_id, project_id, min(99, int(b + percent * s / 100)), f"記事{p}/{len(approved_ids)}: {stage}"),
+                    )
+                    repo.update_article(article_id, status="completed", video_path=str(result["video"]), thumbnail_path=str(result["thumbnail"]), video_duration=result["duration"], error=None)
+                except JobCancelledError:
+                    repo.update_article(article_id, status="ready_for_video", error=None)
+                    repo.update_job(job_id, status="cancelled", stage="キャンセル済み", error=None, log="ユーザーによりキャンセルされました。")
+                    repo.update_project(project_id, status="ready_for_video", error=None)
+                    return
+                except Exception as exc:
+                    video_failures += 1
+                    repo.update_article(article_id, status="error", error=f"{type(exc).__name__}: {exc}")
+                    self._log_file(project_id, traceback.format_exc())
+
+            total_failures = script_failures + video_failures
+            repo.update_project(project_id, status="partial_error" if total_failures else "completed", error=f"{total_failures}件失敗" if total_failures else None)
+            repo.update_job(job_id, progress=100, stage="一気通貫処理完了", status="completed", log=f"成功{len(approved_ids) - video_failures}件 / 失敗{total_failures}件")
+        except JobCancelledError as exc:
+            self._fail(job_id, project_id, exc, cancelled_status="waiting_article_approval")
+        except Exception as exc:
+            self._fail(job_id, project_id, exc, cancelled_status="waiting_article_approval")
+
+    def _fail(self, job_id: str, project_id: str, exc: Exception, *, cancelled_status: str = "created") -> None:
+        if isinstance(exc, JobCancelledError):
+            repo.update_job(job_id, status="cancelled", stage="キャンセル済み", error=None, log="ユーザーによりキャンセルされました。")
+            repo.update_project(project_id, status=cancelled_status, error=None)
+            return
         detail = f"{type(exc).__name__}: {exc}"
         repo.update_job(job_id, status="error", stage="エラー", error=detail, log=detail)
         repo.update_project(project_id, status="error", error=detail)

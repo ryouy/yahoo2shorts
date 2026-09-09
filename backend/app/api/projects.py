@@ -34,7 +34,7 @@ def _validate_discovery_input(payload: ProjectCreate | DiscoveryRequest) -> dict
             raise HTTPException(422, "記事URLを1件以上入力してください。")
         return {**payload.model_dump(), "urls": urls, "request_text": ""}
     request_text = payload.request_text.strip()
-    if not request_text:
+    if payload.mode == "request" and not request_text:
         raise HTTPException(422, "記事条件を入力してください。")
     return {**payload.model_dump(), "urls": [], "request_text": request_text}
 
@@ -48,7 +48,7 @@ def list_projects():
 def create_project(payload: ProjectCreate):
     values = _validate_discovery_input(payload)
     request_text = "\n".join(values["urls"]) if values["mode"] == "url" else values["request_text"]
-    project = repo.create_project(values["mode"], request_text, values["article_count"])
+    project = repo.create_project(values["mode"], request_text, values["article_count"], values["video_mode"])
     _run_dir(project["id"]).mkdir(parents=True, exist_ok=True)
     return project
 
@@ -62,13 +62,13 @@ def get_project(project_id: str):
 
 
 @router.delete("/projects/{project_id}", status_code=204)
-def delete_project(project_id: str):
+def delete_project(project_id: str, force: bool = False):
     run_dir = _run_dir(project_id).resolve()
     root = Path(str(db.settings().get("output_folder") or RUNS_DIR)).expanduser().resolve()
     if run_dir.parent != root:
         raise HTTPException(400, "削除先が不正です。")
     try:
-        deleted = repo.delete_project(project_id)
+        deleted = repo.delete_project(project_id, force=force)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     if not deleted:
@@ -102,6 +102,16 @@ def approve_articles(project_id: str, payload: ArticleApproval):
     return {"articles": selected}
 
 
+@router.post("/projects/{project_id}/full-pipeline", status_code=202)
+def full_pipeline(project_id: str, payload: ArticleApproval):
+    if not repo.get_project(project_id):
+        raise HTTPException(404, "Projectが見つかりません。")
+    try:
+        return job_runner.start_full_pipeline(project_id, payload.article_ids)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 @router.post("/projects/{project_id}/generate-scripts", status_code=202)
 def generate_scripts(project_id: str):
     if not repo.get_project(project_id):
@@ -112,6 +122,26 @@ def generate_scripts(project_id: str):
         return job_runner.start_scripts(project_id)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/projects/{project_id}/approve-all-scripts")
+def approve_all_scripts(project_id: str):
+    from .articles import approve_script  # local import avoids a circular import at module load time
+
+    project = repo.get_project(project_id)
+    if not project:
+        raise HTTPException(404, "Projectが見つかりません。")
+    pending = [item for item in project["articles"] if item.get("script") and not item["script"]["approved"]]
+    if not pending:
+        raise HTTPException(409, "承認待ちの原稿がありません。")
+    approved, failed = [], []
+    for item in pending:
+        try:
+            approve_script(item["id"])
+            approved.append(item["id"])
+        except HTTPException as exc:
+            failed.append({"article_id": item["id"], "title": item.get("title", ""), "error": exc.detail})
+    return {"approved": approved, "failed": failed}
 
 
 @router.post("/projects/{project_id}/generate-videos", status_code=202)

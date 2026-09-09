@@ -31,13 +31,14 @@ def get_article(article_id: int):
 @router.put("/articles/{article_id}/script")
 def save_script(article_id: int, payload: ScriptSave):
     article = _article(article_id)
+    video_mode = (repo.get_project(article["project_id"]) or {}).get("video_mode", "normal")
     content = payload.script.model_dump()
     try:
-        validate_script(content, set(), db.settings(), editor=True)
+        validate_script(content, set(), db.settings(), editor=True, video_mode=video_mode)
     except Exception as exc:
         raise HTTPException(422, str(exc)) from exc
     content["title"], content["source"], content["url"] = article["title"], article["source"], article["url"]
-    content["estimated_seconds"] = estimate_script_seconds(content)
+    content["estimated_seconds"] = estimate_script_seconds(content, video_mode=video_mode)
     repo.save_script(article_id, content, approved=False)
     if article.get("draft_path"):
         save_json(content, Path(article["draft_path"]))
@@ -53,8 +54,9 @@ def regenerate_script(article_id: int):
     source_article = load_json(Path(article["article_path"]))
     with Path(article["comments_path"]).open(encoding="utf-8-sig") as stream:
         comments = list(csv.DictReader(stream))
+    video_mode = (repo.get_project(article["project_id"]) or {}).get("video_mode", "normal")
     try:
-        content = generate_script(source_article, comments, db.settings())
+        content = generate_script(source_article, comments, db.settings(), video_mode=video_mode)
     except Exception as exc:
         raise HTTPException(400, str(exc)) from exc
     repo.save_script(article_id, content, approved=False)
@@ -83,6 +85,14 @@ def approve_script(article_id: int):
     project = repo.get_project(article["project_id"])
     if project and all((not item["selected"]) or item["status"] in {"ready_for_video", "completed", "error"} for item in project["articles"]):
         repo.update_project(article["project_id"], status="ready_for_video")
+    return repo.get_article(article_id)
+
+
+@router.put("/articles/{article_id}/bgm")
+def set_bgm(article_id: int, payload: dict):
+    _article(article_id)
+    track = (payload.get("bgm_track") or "").strip() or None
+    repo.update_article(article_id, bgm_track=track)
     return repo.get_article(article_id)
 
 

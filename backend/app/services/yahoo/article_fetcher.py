@@ -126,6 +126,8 @@ def extract_article(html: str, url: str) -> dict:
     if not title and soup.find("h1"):
         title = clean_text(soup.find("h1").get_text(" ", strip=True))
     source = _name(node.get("publisher")) or _meta(soup, property="og:site_name") or "ニュース"
+    if "yahoo" in source.lower():
+        source = "ニュース"
     body_value = node.get("articleBody") or ""
     body = clean_text("\n".join(body_value) if isinstance(body_value, list) else body_value)
     if len(body) < 200:

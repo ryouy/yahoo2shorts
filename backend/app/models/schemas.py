@@ -14,14 +14,15 @@ class ApiKeyInput(BaseModel):
 
 
 class ProjectCreate(BaseModel):
-    mode: Literal["url", "request"] = "url"
+    mode: Literal["url", "request", "gonline"] = "url"
     request_text: str = ""
     urls: list[str] = Field(default_factory=list)
     article_count: int = Field(default=3, ge=1, le=10)
+    video_mode: Literal["normal", "gold"] = "normal"
 
 
 class DiscoveryRequest(BaseModel):
-    mode: Literal["url", "request"]
+    mode: Literal["url", "request", "gonline"]
     request_text: str = ""
     urls: list[str] = Field(default_factory=list)
     article_count: int = Field(default=3, ge=1, le=10)
@@ -35,6 +36,7 @@ class Intro(BaseModel):
     headline: str
     explainer: str
     narration: str
+    summary_narration: str = ""
 
 
 class Post(BaseModel):
@@ -54,6 +56,9 @@ class ScriptContent(BaseModel):
     title: str
     source: str
     url: str
+    youtube_title: str = ""
+    youtube_hashtags: list[str] = Field(default_factory=list)
+    youtube_summary: str = ""
     intro: Intro
     posts: list[Post] = Field(min_length=1, max_length=20)
     outro: Outro

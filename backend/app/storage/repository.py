@@ -11,7 +11,7 @@ JST = ZoneInfo("Asia/Tokyo")
 
 
 class Repository:
-    def create_project(self, mode: str, request_text: str, article_count: int) -> dict:
+    def create_project(self, mode: str, request_text: str, article_count: int, video_mode: str = "normal") -> dict:
         base = datetime.now(JST).strftime("%Y%m%d_%H%M%S")
         project_id = base
         suffix = 2
@@ -20,8 +20,8 @@ class Repository:
             suffix += 1
         now = utc_now()
         db.execute(
-            "INSERT INTO projects(id,status,request_mode,request_text,article_count,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-            (project_id, "created", mode, request_text, article_count, now, now),
+            "INSERT INTO projects(id,status,request_mode,request_text,article_count,video_mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+            (project_id, "created", mode, request_text, article_count, video_mode, now, now),
         )
         return self.get_project(project_id)
 
@@ -47,10 +47,13 @@ class Repository:
         )
         return rows
 
-    def delete_project(self, project_id: str) -> bool:
-        """Delete a project and its related rows, but never interrupt an active job."""
+    def delete_project(self, project_id: str, *, force: bool = False) -> bool:
+        """Delete a project and its related rows. An active job blocks deletion unless force=True."""
         with db.transaction() as connection:
-            if connection.execute("SELECT 1 FROM jobs WHERE project_id=? AND status IN ('queued','running') LIMIT 1", (project_id,)).fetchone():
+            active = connection.execute(
+                "SELECT 1 FROM jobs WHERE project_id=? AND status IN ('queued','running','cancelling') LIMIT 1", (project_id,)
+            ).fetchone()
+            if active and not force:
                 raise ValueError("処理中のプロジェクトは削除できません。")
             result = connection.execute("DELETE FROM projects WHERE id=?", (project_id,))
             return result.rowcount > 0
@@ -146,7 +149,7 @@ class Repository:
         # check-then-create race from simultaneous API requests.
         with db.transaction() as connection:
             if project_id and connection.execute(
-                "SELECT 1 FROM jobs WHERE project_id=? AND status IN ('queued','running') LIMIT 1",
+                "SELECT 1 FROM jobs WHERE project_id=? AND status IN ('queued','running','cancelling') LIMIT 1",
                 (project_id,),
             ).fetchone():
                 raise ValueError("このプロジェクトでは別の処理が進行中です。")
@@ -169,7 +172,7 @@ class Repository:
         concurrently would make their final status depend on timing.
         """
         job = db.fetchone(
-            "SELECT * FROM jobs WHERE project_id=? AND status IN ('queued','running') "
+            "SELECT * FROM jobs WHERE project_id=? AND status IN ('queued','running','cancelling') "
             "ORDER BY created_at DESC LIMIT 1",
             (project_id,),
         )

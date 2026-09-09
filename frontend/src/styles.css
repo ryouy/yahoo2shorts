@@ -167,3 +167,68 @@ button.primary, a.button.primary { background: #202124; box-shadow: none; font-s
 .new-project-page .creation-form:has(.url-list) { grid-template-columns: 1fr; }
 .settings-disclosure { border-top: 1px solid #dadce0; max-width: none; }.settings-disclosure:last-child { border-bottom: 1px solid #dadce0; }.settings-disclosure summary { list-style: none; cursor: pointer; min-height: 52px; display: flex; align-items: center; justify-content: space-between; color: #202124; font-size: 15px; font-weight: 700; }.settings-disclosure summary::-webkit-details-marker { display: none; }.settings-disclosure summary > span:last-child { color: #70757a; font-size: 18px; transition: transform .16s; }.settings-disclosure[open] summary > span:last-child { transform: rotate(180deg); }.settings-disclosure .settings-grid { padding: 0 0 16px; }.settings-disclosure .setting-row { min-height: 54px; }.settings-disclosure .system-card { padding: 0 0 16px; }.settings-disclosure .system-summary { margin-bottom: 8px; display: grid; grid-template-columns: 28px 1fr auto; }.settings-disclosure .system-summary h2 { font-size: 14px; }.settings-disclosure .check-row { padding: 11px 4px; }.key-card { margin-bottom: 20px; }.key-card .key-content { margin-bottom: 10px; }.settings-group { display: none; }
 @media (max-width: 760px) { .brand { margin-right: 12px; }.new-project-page .creation-form { display: block; }.new-project-page .creation-form > .count-row { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e4e7eb; border-bottom: 0; }.new-project-page .creation-form textarea { min-height: 130px; }.new-project-page .creation-form > .form-actions { padding-top: 15px; }.settings-disclosure summary { min-height: 48px; } }
+
+/* Modal overlay and dialog */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-content { background: #fff; border-radius: 12px; max-width: 90vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+.preview-modal { padding: 24px; }
+.preview-modal h2 { margin: 0 0 16px; font-size: 18px; }
+.modal-close { position: absolute; top: 16px; right: 16px; border: 0; background: transparent; cursor: pointer; color: #666; padding: 8px; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { color: #000; }
+
+/* Video-generation card action buttons */
+.video-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.video-action-preview { width: 100%; border: 1px solid #d8e0e9; background: #fff; color: #344459; padding: 10px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.video-action-preview:hover:not(:disabled) { border-color: #b7c2d0; background: #f5f8fc; }
+.video-action-generate { width: 100%; border: 0; color: #fff; background: #1d2430; padding: 12px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.video-action-generate:hover:not(:disabled) { background: #0e1218; }
+
+/* Three-way mode switch (article discovery source) */
+.mode-grid-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* YouTube Shorts title suggestion box */
+.youtube-title-box { margin-top: 10px; padding: 10px 12px; border: 1px solid #e4e7eb; border-radius: 8px; background: #f9fafb; }
+.youtube-title-box small { display: block; color: #87909d; font-size: 10px; letter-spacing: .5px; margin-bottom: 4px; }
+.youtube-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.youtube-title-row span { font-size: 13px; font-weight: 600; color: #1d2430; line-height: 1.4; }
+
+/* YouTube description template editor */
+.template-row { flex-direction: column; align-items: stretch; gap: 8px; padding-bottom: 16px; min-height: auto; }
+.template-row textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; padding: 10px; border: 1px solid #dfe4ea; border-radius: 6px; resize: vertical; }
+
+/* Full YouTube description preview */
+.youtube-description-text { white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: 12px; color: #344459; margin: 4px 0 0; line-height: 1.6; }
+
+/* BGM selection */
+.bgm-folder-hint { font-size: 12px; color: #7d8794; margin: -12px 0 16px; }
+.bgm-folder-hint code { background: #f1f3f5; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+.bgm-select-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.bgm-select-row label { font-size: 11px; color: #7d8794; font-weight: 600; }
+.bgm-select-row select { flex: 1; border: 1px solid #dfe4ea; border-radius: 6px; padding: 6px 8px; font-size: 12px; background: #fff; }
+
+/* Cancel job button */
+.progress-title { grid-template-columns: 38px 1fr auto auto !important; }
+.cancel-job-button { border: 1px solid #f1ced6; background: #fff8fa; color: #d9385c; border-radius: 7px; padding: 6px 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0; }
+.cancel-job-button:hover:not(:disabled) { background: #fdeef1; }
+
+/* Compact video-generation card layout (video preview stays small, info area does not force excess height) */
+.video-grid { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+.video-card { grid-template-columns: 150px 1fr; min-height: 0; align-items: stretch; }
+.video-visual { min-height: 0; max-height: none; }
+.video-visual video { max-height: 320px; }
+.video-info { padding: 14px 16px; gap: 4px; }
+.video-info h3 { margin: 6px 0 2px; -webkit-line-clamp: 2; }
+.video-info > strong { margin: 0; font-size: 14px; }
+.video-info-head { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.youtube-panel { width: 100%; margin-top: 8px; border-top: 1px solid #eceef2; padding-top: 8px; }
+.youtube-panel summary { cursor: pointer; list-style: none; font-size: 11px; font-weight: 700; color: #526071; padding: 2px 0; }
+.youtube-panel summary::-webkit-details-marker { display: none; }
+.youtube-panel summary::before { content: '▸ '; }
+.youtube-panel[open] summary::before { content: '▾ '; }
+.youtube-panel .youtube-title-box { margin-top: 8px; }
+@media (max-width: 720px) { .video-card { grid-template-columns: 1fr; } .video-visual video { max-height: 360px; } }
+
+/* Sticky action bar: multiple buttons */
+.sticky-action-buttons { display: flex; gap: 10px; align-items: center; }
+.sticky-action-buttons .secondary { background: transparent; border: 1px solid #ffffff40; color: #fff; }
+.sticky-action-buttons .secondary:hover:not(:disabled) { background: #ffffff14; }

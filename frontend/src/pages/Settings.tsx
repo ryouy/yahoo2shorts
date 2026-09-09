@@ -22,7 +22,10 @@ const groups = [
     ['voice_4', 'Voice 4（Andrew / 多言語）', 'text'], ['voice_5', 'Voice 5（Emma / 多言語）', 'text'], ['voice_6', 'Voice 6（Brian / 多言語）', 'text'], ['voice_rate', 'Voice Rate', 'text'],
   ]},
   { name: 'Video', description: '縦型動画とBGM', fields: [
-    ['width', '幅', 'number'], ['height', '高さ', 'number'], ['fps', 'FPS', 'number'], ['comments_per_page', 'コメント/ページ', 'number'], ['bgm_enabled', 'BGM', 'boolean'], ['bgm_volume', 'BGM Volume', 'number'], ['bgm_bpm', 'BPM', 'number'],
+    ['width', '幅', 'number'], ['height', '高さ', 'number'], ['fps', 'FPS', 'number'], ['comments_per_page', 'コメント/ページ', 'number'], ['bgm_volume', 'BGM Volume', 'number'],
+  ]},
+  { name: 'YouTube', description: 'チャンネル情報と概要欄', fields: [
+    ['channel_name', 'チャンネル名', 'text'], ['channel_handle', 'チャンネルハンドル（@から）', 'text'],
   ]},
 ] as const
 
@@ -48,7 +51,30 @@ export default function SettingsPage({ onError, onNotice }: Props) {
     try { const openai = await api.delete<Payload['openai']>('/settings/openai-key'); setData(data && { ...data, openai }); onNotice('APIキーを削除しました。') } catch (e) { onError(e instanceof Error ? e.message : String(e)) }
   }
   const restartBackend = async () => {
-    try { await api.post<{ ok: boolean }>('/restart'); onNotice('バックエンドを再起動しています…') } catch (e) { onError(e instanceof Error ? e.message : String(e)) }
+    try {
+      await api.post<{ ok: boolean }>('/restart')
+      onNotice('バックエンドを再起動しています…')
+      // Wait for server to restart and then reload page
+      let attempts = 0
+      const maxAttempts = 20
+      const pollHealth = async () => {
+        while (attempts < maxAttempts) {
+          attempts++
+          await new Promise(resolve => setTimeout(resolve, 500))
+          try {
+            await api.get('/health')
+            // Server is back online, reload page
+            window.location.reload()
+            return
+          } catch {
+            // Server still offline, continue polling
+          }
+        }
+        // Timeout reached, force reload anyway
+        window.location.reload()
+      }
+      pollHealth()
+    } catch (e) { onError(e instanceof Error ? e.message : String(e)) }
   }
   if (!data) return <div className="loading">設定を読み込み中…</div>
   return <>
@@ -73,6 +99,10 @@ export default function SettingsPage({ onError, onNotice }: Props) {
         <label htmlFor={key}>{label}</label>
         {type === 'boolean' ? <button id={key} className={`toggle ${data.values[key] ? 'on' : ''}`} onClick={() => update(key, !data.values[key])}><span /></button> : <input id={key} type={type} step={key.includes('volume') ? '.001' : key.includes('seconds') ? '.1' : '1'} value={String(data.values[key])} onChange={e => update(key, type === 'number' ? Number(e.target.value) : e.target.value)} />}
       </div>)}</div>
+      {group.name === 'YouTube' && <div className="setting-row template-row">
+        <label htmlFor="youtube_description_template">概要欄テンプレート<span>使える変数: {'{{summary}} {{hashtags}} {{channel_name}} {{channel_handle}} {{title}}'}</span></label>
+        <textarea id="youtube_description_template" rows={8} value={String(data.values.youtube_description_template ?? '')} onChange={e => update('youtube_description_template', e.target.value)} />
+      </div>}
     </details>)}
     <details className="settings-disclosure"><summary><span>システム</span><span>⌄</span></summary><SystemCheck embedded onError={onError} /></details>
   </>

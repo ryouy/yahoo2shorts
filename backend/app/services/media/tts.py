@@ -56,6 +56,60 @@ def media_duration(path: Path) -> float:
     return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
+def _silent_regions(path: Path, *, noise_db: int = -40, min_duration: float = 0.08) -> list[tuple[float, float]]:
+    output = subprocess.run(
+        [require_binary("ffmpeg"), "-i", str(path), "-af", f"silencedetect=noise={noise_db}dB:duration={min_duration}", "-f", "null", "-"],
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    ).stdout
+    starts = [float(value) for value in re.findall(r"silence_start:\s*(-?[\d.]+)", output)]
+    ends = [float(value) for value in re.findall(r"silence_end:\s*([\d.]+)", output)]
+    return list(zip(starts, ends))
+
+
+def _trim_silence(path: Path) -> None:
+    """edge-tts pads each clip with leading/trailing silence. Concatenating many
+    clips (intro/summary/posts/outro) stacks that padding into a noticeable gap
+    between sections, so trim it down.
+
+    Silence in the *middle* of a sentence (a natural pause at a comma/period)
+    must never be touched — cutting it splices unrelated words together and
+    sounds like cut-off or overlapping speech. So this only removes a region
+    when it starts at (or before) time zero, or ends at (or after) the clip's
+    end, i.e. genuine leading/trailing padding, each capped at 30% of the
+    clip so a mis-detection can't gut most of the audio.
+    """
+    try:
+        total = media_duration(path)
+        regions = _silent_regions(path)
+        if not regions:
+            return
+        start_cut = 0.0
+        first_start, first_end = regions[0]
+        if first_start <= 0.05:
+            start_cut = min(first_end, total * 0.3)
+        end_cut = 0.0
+        last_start, last_end = regions[-1]
+        if last_end >= total - 0.05:
+            end_cut = min(total - last_start, total * 0.3)
+        if start_cut <= 0 and end_cut <= 0:
+            return
+        new_duration = total - start_cut - end_cut
+        if new_duration < total * 0.5:
+            return
+        trimmed = path.with_suffix(".trimmed.mp3")
+        run_checked([
+            require_binary("ffmpeg"), "-y", "-i", str(path),
+            "-ss", f"{start_cut:.3f}", "-t", f"{new_duration:.3f}",
+            "-c:a", "libmp3lame", "-b:a", "64k", str(trimmed),
+        ], "ffmpeg trim silence")
+        if trimmed.exists() and trimmed.stat().st_size > 100:
+            trimmed.replace(path)
+        else:
+            trimmed.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
 def synthesize_voice(text: str, output: Path, *, voice: str, rate: str) -> str:
     value = clean_text(text)
     if not value:
@@ -74,6 +128,7 @@ def synthesize_voice(text: str, output: Path, *, voice: str, rate: str) -> str:
                     asyncio.run(communicate.save(str(output)))
                 if not output.exists() or output.stat().st_size < 100:
                     raise RuntimeError("TTS出力が空です。")
+                _trim_silence(output)
                 return candidate
             except Exception as exc:
                 last_error = exc

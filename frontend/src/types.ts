@@ -15,7 +15,10 @@ export interface ScriptContent {
   title: string
   source: string
   url: string
-  intro: { headline: string; explainer: string; narration: string }
+  youtube_title?: string
+  youtube_hashtags?: string[]
+  youtube_summary?: string
+  intro: { headline: string; explainer: string; narration: string; summary_narration?: string }
   posts: Post[]
   outro: { text: string; narration: string }
   estimated_seconds?: number
@@ -49,6 +52,7 @@ export interface Article {
   video_duration?: number
   video_path?: string
   thumbnail_path?: string
+  bgm_track?: string | null
   script?: ScriptRecord
 }
 
@@ -57,7 +61,7 @@ export interface Job {
   project_id: string
   article_id?: number
   kind: string
-  status: 'queued' | 'running' | 'completed' | 'error'
+  status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'completed' | 'error'
   progress: number
   stage: string
   error?: string
@@ -70,6 +74,7 @@ export interface Project {
   request_mode: string
   request_text: string
   article_count: number
+  video_mode: 'normal' | 'gold'
   created_at: string
   updated_at: string
   error?: string

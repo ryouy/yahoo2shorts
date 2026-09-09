@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
@@ -47,9 +48,9 @@ def _article_header(draw, script: dict, width: int, *, intro: bool = False) -> N
         box = (52, 250, width - 52, 1435)
         draw.rounded_rectangle((74, 278, width - 30, 1463), 52, fill=(69, 58, 128))
         draw.rounded_rectangle(box, 52, fill="white")
-        # Clean source display without icon
+        # Clean source display without icon (hide if contains "yahoo")
         source_text = clean_text(script.get("source") or "")[:25]
-        if source_text:
+        if source_text and "yahoo" not in source_text.lower():
             draw.text((110, 333), source_text, font=font(32, True), fill=(100, 97, 112))
         y = 530
         for line in _wrap(draw, script["intro"]["headline"], font(70, True), width - 210)[:5]:
@@ -60,13 +61,67 @@ def _article_header(draw, script: dict, width: int, *, intro: bool = False) -> N
     else:
         draw.rounded_rectangle((45, 54, width - 35, 364), 42, fill=(62, 52, 117))
         draw.rounded_rectangle((35, 44, width - 45, 354), 42, fill="white")
-        draw.rounded_rectangle((75, 80, 165, 190), 20, fill=(255, 225, 72))
         y = 72
-        for line in _wrap(draw, script["intro"]["headline"], font(50, True), width - 240)[:2]:
-            draw.text((200, y), line, font=font(50, True), fill=(30, 28, 38)); y += 66
+        for line in _wrap(draw, script["intro"]["headline"], font(50, True), width - 150)[:2]:
+            draw.text((75, y), line, font=font(50, True), fill=(30, 28, 38)); y += 66
         y = 220
         for line in _wrap(draw, script["intro"]["explainer"], font(34), width - 130)[:2]:
             draw.text((75, y), line, font=font(34), fill=(70, 67, 79)); y += 46
+
+
+def render_summary_frame(script: dict, page_text: str, page_index: int, total_pages: int, output: Path, settings: dict, *, background_path: Path | None = None) -> None:
+    """One page of the multi-page body-explanation deck (see paginate_summary_text).
+    The card is sized to the actual text so a short page doesn't leave a big empty card."""
+    width, height = settings["width"], settings["height"]
+    image = _background(width, height, background_path)
+    draw = ImageDraw.Draw(image)
+    text_width = width - 260
+    line_height = 50
+    headline_lines = _wrap(draw, script["intro"]["headline"], font(38, True), text_width)[:2]
+    body_lines = _wrap(draw, page_text, font(36), text_width)[:12]
+    dots_height = 76 if total_pages > 1 else 20
+    content_height = 56 + len(headline_lines) * line_height + 22 + len(body_lines) * line_height + dots_height
+    card_height = max(560, min(content_height, height - 300))
+    card_top = (height - card_height) // 2
+    card_bottom = card_top + card_height
+    box = (75, card_top, width - 75, card_bottom)
+    draw.rounded_rectangle((95, card_top + 24, width - 55, card_bottom + 20), 44, fill=(69, 58, 128))
+    draw.rounded_rectangle(box, 44, fill="white")
+    y = card_top + 56
+    for line in headline_lines:
+        draw.text((130, y), line, font=font(38, True), fill=(30, 28, 38)); y += line_height
+    y += 22
+    for line in body_lines:
+        draw.text((130, y), line, font=font(36), fill=(61, 58, 70)); y += line_height
+    if total_pages > 1:
+        dot_y = card_bottom - 55
+        for dot in range(total_pages):
+            cx = width // 2 + (dot - (total_pages - 1) / 2) * 34
+            draw.ellipse((cx - 7, dot_y - 7, cx + 7, dot_y + 7), fill=(69, 58, 128) if dot == page_index else (215, 213, 227))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    image.save(output)
+
+
+def paginate_summary_text(text: str, *, chars_per_page: int = 130) -> list[str]:
+    """Split the body-explanation narration into card-sized pages at sentence
+    boundaries so each page reads as a complete thought."""
+    value = clean_text(text)
+    if not value:
+        return [""]
+    sentences = re.split(r"(?<=[。！？])", value)
+    sentences = [s for s in (part.strip() for part in sentences) if s]
+    pages: list[str] = []
+    current = ""
+    for sentence in sentences:
+        candidate = current + sentence
+        if current and len(candidate) > chars_per_page:
+            pages.append(current)
+            current = sentence
+        else:
+            current = candidate
+    if current:
+        pages.append(current)
+    return pages or [value]
 
 
 def render_frame(script: dict, output: Path, settings: dict, *, visible: int = 0, intro: bool = False, outro: bool = False, background_path: Path | None = None) -> None:
@@ -120,50 +175,65 @@ def render_thumbnail(script: dict, output: Path, settings: dict, *, background_p
     width, height = settings["width"], settings["height"]
     image = _background(width, height, background_path)
     draw = ImageDraw.Draw(image)
-    # Simple dark header with clean typography
-    draw.rectangle((0, 0, width, 200), fill=(12, 16, 17))
-    draw.text((58, 66), "NEWS", font=font(48, True), fill="white")
+    # Premium header with gradient-like effect
+    draw.rectangle((0, 0, width, 240), fill=(8, 12, 14))
+    draw.rectangle((0, 0, width, 12), fill=(188, 255, 66))
+    header_label = clean_text(settings.get("channel_name") or "")[:14] or "TOPIC"
+    draw.text((58, 76), header_label, font=font(52, True), fill=(188, 255, 66))
+
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay)
-    overlay_draw.rectangle((0, 720, width, height), fill=(0, 0, 0, 178))
+    overlay_draw.rectangle((0, 560, width, height), fill=(0, 0, 0, 200))
     image = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
     draw = ImageDraw.Draw(image)
-    y = 780
-    for line in _wrap(draw, script["intro"]["headline"], font(86, True), width - 110)[:5]:
-        draw.text((55, y), line, font=font(86, True), fill="white", stroke_width=4, stroke_fill=(0, 0, 0)); y += 108
-    # Display multiple comments for more eye-catching thumbnail
+
+    # Headline with better positioning
+    y = 300
+    headline_lines = _wrap(draw, script["intro"]["headline"], font(78, True), width - 110)[:3]
+    for line in headline_lines:
+        draw.text((55, y), line, font=font(78, True), fill="white", stroke_width=5, stroke_fill=(0, 0, 0))
+        y += 98
+
+    # Display multiple comments for eye-catching layout
     posts = script.get("posts", [])
-    comment_count = min(3, len(posts))  # Show up to 3 comments
+    comment_count = min(3, len(posts))
     for idx in range(comment_count):
         post = posts[idx]
         comment_text = post.get("text", "")
         if comment_text:
             accent_color = ACCENTS[idx % len(ACCENTS)]
-            # Adjust font size based on comment length for better readability
             text_length = len(clean_text(comment_text))
-            if text_length > 30:
-                font_size = 30
-                max_lines = 3
-                line_height = 42
-            elif text_length > 15:
-                font_size = 33
-                max_lines = 2
-                line_height = 48
-            else:
-                font_size = 37
-                max_lines = 2
-                line_height = 52
 
-            card_height = 100 + (max_lines - 1) * line_height
-            comment_y = y + 45 + (idx * (card_height + 20))
-            if comment_y + card_height > height - 100:
+            # Adaptive sizing — kept large even for long comments
+            if text_length > 35:
+                font_size = 36
+                max_lines = 3
+                line_height = 50
+                card_height = 170
+            elif text_length > 20:
+                font_size = 42
+                max_lines = 2
+                line_height = 58
+                card_height = 150
+            else:
+                font_size = 50
+                max_lines = 2
+                line_height = 66
+                card_height = 160
+
+            comment_y = y + 30 + (idx * (card_height + 22))
+            if comment_y + card_height > height - 110:
                 break
-            # Larger, more eye-catching colored card for each comment
-            draw.rounded_rectangle((45, comment_y, width - 45, comment_y + card_height), 28, fill=accent_color)
-            text_y = comment_y + 30
-            for line in _wrap(draw, comment_text, font(font_size, True), width - 120)[:max_lines]:
-                draw.text((75, text_y), line, font=font(font_size, True), fill="white", stroke_width=3, stroke_fill=(0, 0, 0))
+
+            # Eye-catching card with shadow effect
+            draw.rounded_rectangle((40, comment_y + 8, width - 40, comment_y + card_height + 8), 24, fill=(0, 0, 0))
+            draw.rounded_rectangle((35, comment_y, width - 35, comment_y + card_height), 24, fill=accent_color)
+
+            # Comment text with better spacing
+            text_y = comment_y + (card_height - min(max_lines, len(_wrap(draw, comment_text, font(font_size, True), width - 140))) * line_height) // 2
+            for line in _wrap(draw, comment_text, font(font_size, True), width - 140)[:max_lines]:
+                draw.text((70, text_y), line, font=font(font_size, True), fill="white", stroke_width=4, stroke_fill=(0, 0, 0))
                 text_y += line_height
-    draw.text((58, height - 78), "yc2ys", font=font(28, True), fill=LIME)
+
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)

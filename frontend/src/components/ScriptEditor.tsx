@@ -1,20 +1,23 @@
-import { CheckCircle2, GripVertical, Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
+import { CheckCircle2, GripVertical, Image as ImageIcon, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { Article, Post, ScriptContent } from '../types'
 
-interface Props { article: Article; onChanged: () => void; onError: (value: string) => void; onNotice: (value: string) => void }
+interface Props { article: Article; videoMode?: 'normal' | 'gold'; onChanged: () => void; onError: (value: string) => void; onNotice: (value: string) => void }
 
 const blankPost = (): Post => ({ text: '', reply_to: null, tone: 'rough', importance: 3, source_comment_ids: [] })
-const estimate = (script: ScriptContent) => {
+const estimate = (script: ScriptContent, videoMode: 'normal' | 'gold' = 'normal') => {
   const seconds = (text: string) => text.trim() ? .45 + text.trim().length / 7.6 : 0
-  return seconds(script.intro.narration) + script.posts.reduce((sum, post) => sum + seconds(post.text) + .05, 0) + seconds(script.outro.narration) + .1
+  const summary = videoMode === 'gold' ? seconds(script.intro.summary_narration || '') + .05 : 0
+  return seconds(script.intro.narration) + summary + script.posts.reduce((sum, post) => sum + seconds(post.text) + .05, 0) + seconds(script.outro.narration) + .1
 }
 
-export default function ScriptEditor({ article, onChanged, onError, onNotice }: Props) {
+export default function ScriptEditor({ article, videoMode = 'normal', onChanged, onError, onNotice }: Props) {
   const [script, setScript] = useState<ScriptContent | null>(article.script?.content || null)
   const [busy, setBusy] = useState(false)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   useEffect(() => setScript(article.script?.content || null), [article.id, article.script?.content])
   if (!script) return <div className="empty-inline"><p>この記事の原稿はまだありません。</p>{article.error && <div className="error-note">{article.error}</div>}</div>
 
@@ -45,12 +48,33 @@ export default function ScriptEditor({ article, onChanged, onError, onNotice }: 
   const approve = async () => {
     setBusy(true); try { await api.put(`/articles/${article.id}/script`, { script: { ...script, posts: script.posts.filter(post => post.text.trim()) } }); await api.post(`/articles/${article.id}/script/approve`); onNotice('原稿を承認しました。'); onChanged() } catch (e) { onError(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   }
-  const estimated = estimate(script)
+  const generatePreview = async () => {
+    if (!script) return
+    setPreviewLoading(true)
+    try {
+      const response = await fetch(`/api/articles/${article.id}/preview-thumbnail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(script)
+      })
+      if (!response.ok) throw new Error('Preview generation failed')
+      const blob = await response.blob()
+      setPreviewUrl(URL.createObjectURL(blob))
+      onNotice('サムネイルプレビューを生成しました。')
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'プレビュー生成に失敗しました。')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+  const estimated = estimate(script, videoMode)
+  const maxSeconds = videoMode === 'gold' ? 260 : 59.5
   return <div className="script-editor">
     <div className="editor-block"><span className="block-number">01</span><div className="block-body"><h3>記事説明</h3>
       <label>見出し<input value={script.intro.headline} onChange={e => setScript({ ...script, intro: { ...script.intro, headline: e.target.value } })} /></label>
       <label>画面の補足<textarea rows={2} value={script.intro.explainer} onChange={e => setScript({ ...script, intro: { ...script.intro, explainer: e.target.value } })} /></label>
       <label>記事説明音声<textarea rows={2} value={script.intro.narration} onChange={e => setScript({ ...script, intro: { ...script.intro, narration: e.target.value } })} /></label>
+      {videoMode === 'gold' && <label>本文解説（あなたが語る体で長めに）<textarea rows={10} value={script.intro.summary_narration || ''} onChange={e => setScript({ ...script, intro: { ...script.intro, summary_narration: e.target.value } })} /><span>{(script.intro.summary_narration || '').length}文字</span></label>}
     </div></div>
     <div className="comments-head"><div><h3>コメント</h3><p>{script.posts.length}レス ・ ドラッグして並び替え</p></div><button className="secondary" onClick={regenerate} disabled={busy}><RefreshCw size={16} /> 全コメント再生成</button></div>
     <div className="post-list">{script.posts.map((post, index) => <div key={index} className="post-editor" draggable onDragStart={() => setDragIndex(index)} onDragOver={e => e.preventDefault()} onDrop={() => { if (dragIndex !== null) reorder(dragIndex, index); setDragIndex(null) }}>
@@ -62,7 +86,14 @@ export default function ScriptEditor({ article, onChanged, onError, onNotice }: 
     </div>)}</div>
     <button className="add-post" onClick={() => setScript({ ...script, posts: [...script.posts, blankPost()] })}><Plus size={17} /> コメントを追加</button>
     <div className="editor-block outro-block"><span className="block-number">03</span><div className="block-body"><h3>アウトロ</h3><label>画面テキスト<input value={script.outro.text} onChange={e => setScript({ ...script, outro: { ...script.outro, text: e.target.value } })} /></label><label>ナレーション<input value={script.outro.narration} onChange={e => setScript({ ...script, outro: { ...script.outro, narration: e.target.value } })} /></label></div></div>
-    <div className="approval-bar"><div><small>推定動画時間</small><b className={estimated > 59.5 ? 'over' : ''}>{estimated.toFixed(1)}秒</b><span>/ 59.5秒以内</span></div><div><button className="secondary" disabled={busy} onClick={save}><Save size={17} /> 下書き保存</button><button className="primary" disabled={busy || estimated > 59.5} onClick={approve}><CheckCircle2 size={17} /> この原稿を承認</button></div></div>
+    <div className="approval-bar"><div><small>推定動画時間</small><b className={estimated > maxSeconds ? 'over' : ''}>{estimated.toFixed(1)}秒</b><span>/ {maxSeconds}秒以内</span></div><div><button className="secondary" disabled={busy || previewLoading} onClick={save}><Save size={17} /> 下書き保存</button><button className="secondary" disabled={busy || previewLoading} onClick={generatePreview}><ImageIcon size={17} /> {previewLoading ? 'プレビュー生成中…' : 'サムネイルプレビュー'}</button><button className="primary" disabled={busy || estimated > maxSeconds} onClick={approve}><CheckCircle2 size={17} /> この原稿を承認</button></div></div>
+    {previewUrl && <div className="modal-overlay" onClick={() => setPreviewUrl(null)}>
+      <div className="modal-content preview-modal" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={() => setPreviewUrl(null)}><X size={24} /></button>
+        <h2>サムネイルプレビュー</h2>
+        <img src={previewUrl} alt="サムネイル" style={{ maxWidth: '100%', height: 'auto' }} />
+      </div>
+    </div>}
   </div>
 }
 

@@ -9,18 +9,25 @@ def estimate_tts_seconds(text: str) -> float:
     return 0.0 if not value else 0.45 + len(value) / 7.6
 
 
-def estimate_script_seconds(script: dict) -> float:
+def estimate_script_seconds(script: dict, *, video_mode: str = "normal") -> float:
     total = estimate_tts_seconds(script.get("intro", {}).get("narration", "")) + .05
+    if video_mode == "gold":
+        total += estimate_tts_seconds(script.get("intro", {}).get("summary_narration", "")) + .05
     total += sum(estimate_tts_seconds(post.get("text", "")) + .05 for post in script.get("posts", []))
     total += estimate_tts_seconds(script.get("outro", {}).get("narration", "")) + .05
     return round(total, 1)
 
 
-def validate_script(script: dict, valid_comment_ids: set[str], settings: dict, *, editor: bool = False) -> None:
+def validate_script(script: dict, valid_comment_ids: set[str], settings: dict, *, editor: bool = False, video_mode: str = "normal") -> None:
     posts = script.get("posts")
     if not isinstance(posts, list):
         raise ValidationError("posts が配列ではありません。")
-    minimum, maximum = ((1, 20) if editor else (settings["thread_post_min"], settings["thread_post_max"]))
+    if editor:
+        minimum, maximum = 1, 20
+    elif video_mode == "gold":
+        minimum, maximum = settings["gold_thread_post_min"], settings["gold_thread_post_max"]
+    else:
+        minimum, maximum = settings["thread_post_min"], settings["thread_post_max"]
     if not minimum <= len(posts) <= maximum:
         raise ValidationError(f"コメントは{minimum}〜{maximum}件必要です。")
     short_count = medium_count = long_count = reply_count = 0
@@ -69,7 +76,12 @@ def validate_script(script: dict, valid_comment_ids: set[str], settings: dict, *
         outro_narration = clean_text(script.get("outro", {}).get("narration"))
         if not 70 <= len(intro_narration) <= 105:
             raise ValidationError("導入ナレーションは70〜105文字必要です。")
-        if not 35 <= len(outro_narration) <= 55:
-            raise ValidationError("アウトロナレーションは35〜55文字必要です。")
-        if estimate_script_seconds(script) > 54:
+        if not 45 <= len(outro_narration) <= 65:
+            raise ValidationError("アウトロナレーションは45〜65文字必要です。")
+        if video_mode == "gold":
+            summary_narration = clean_text(script.get("intro", {}).get("summary_narration"))
+            if not settings["gold_summary_min_chars"] <= len(summary_narration) <= settings["gold_summary_max_chars"]:
+                raise ValidationError(f"本文要約ナレーションは{settings['gold_summary_min_chars']}〜{settings['gold_summary_max_chars']}文字必要です。")
+        hard_max = settings["gold_hard_max_video_seconds"] if video_mode == "gold" else 54
+        if estimate_script_seconds(script, video_mode=video_mode) > hard_max:
             raise ValidationError("推定動画時間が長すぎます。")

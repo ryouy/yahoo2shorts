@@ -9,6 +9,7 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = Path(os.getenv("YSS_DATA_DIR", ROOT_DIR / "data")).expanduser().resolve()
 RUNS_DIR = DATA_DIR / "runs"
 DB_PATH = DATA_DIR / "app.db"
+BGM_DIR = DATA_DIR / "bgm"
 
 
 @dataclass(slots=True)
@@ -35,6 +36,12 @@ class AppSettings:
     max_reply_posts: int = 3
     target_video_seconds: float = 55.0
     hard_max_video_seconds: float = 59.5
+    gold_thread_post_min: int = 13
+    gold_thread_post_max: int = 16
+    gold_summary_min_chars: int = 650
+    gold_summary_max_chars: int = 780
+    gold_target_video_seconds: float = 220.0
+    gold_hard_max_video_seconds: float = 260.0
     voice_female: str = "ja-JP-NanamiNeural"
     voice_male: str = "ja-JP-KeitaNeural"
     voice_1: str = "ja-JP-NanamiNeural"
@@ -48,9 +55,16 @@ class AppSettings:
     height: int = 1920
     fps: int = 30
     comments_per_page: int = 3
-    bgm_enabled: bool = True
     bgm_volume: float = 0.052
-    bgm_bpm: int = 158
+    channel_name: str = ""
+    channel_handle: str = ""
+    youtube_description_template: str = (
+        "{{summary}}\n\n"
+        "みんなの反応もあわせてチェック!\n\n"
+        "チャンネル登録はこちら → {{channel_handle}}\n"
+        "毎日更新中、見逃し防止に登録がおすすめです。\n\n"
+        "{{hashtags}}"
+    )
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -62,3 +76,4 @@ DEFAULT_SETTINGS = AppSettings().to_dict()
 def ensure_data_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    BGM_DIR.mkdir(parents=True, exist_ok=True)

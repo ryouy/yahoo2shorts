@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS projects (
   request_mode TEXT NOT NULL DEFAULT 'url',
   request_text TEXT NOT NULL DEFAULT '',
   article_count INTEGER NOT NULL DEFAULT 1,
+  video_mode TEXT NOT NULL DEFAULT 'normal',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   error TEXT
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS articles (
   video_path TEXT,
   thumbnail_path TEXT,
   video_duration REAL,
+  bgm_track TEXT,
   error TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -109,6 +111,12 @@ class Database:
         ensure_data_dirs()
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            existing_columns = {row["name"] for row in connection.execute("PRAGMA table_info(projects)")}
+            if "video_mode" not in existing_columns:
+                connection.execute("ALTER TABLE projects ADD COLUMN video_mode TEXT NOT NULL DEFAULT 'normal'")
+            article_columns = {row["name"] for row in connection.execute("PRAGMA table_info(articles)")}
+            if "bgm_track" not in article_columns:
+                connection.execute("ALTER TABLE articles ADD COLUMN bgm_track TEXT")
             # A failed regeneration must not hide a previously saved draft.
             connection.execute(
                 "UPDATE articles SET status=CASE "

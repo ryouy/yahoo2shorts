@@ -21,3 +21,7 @@ class OpenAIServiceError(AppError):
 class ValidationError(AppError):
     code = "validation_error"
 
+
+class JobCancelledError(AppError):
+    code = "job_cancelled"
+

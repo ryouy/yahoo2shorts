@@ -28,6 +28,7 @@ RANKINGS = {
     "アクセスランキング": "https://news.yahoo.co.jp/ranking/access/news",
     "コメントランキング": "https://news.yahoo.co.jp/ranking/comment/news",
 }
+GONLINE_MEDIA_URL = "https://news.yahoo.co.jp/media/gonline"
 
 SEARCH_PLAN_SCHEMA = {
     "type": "object", "properties": {
@@ -245,7 +246,23 @@ def discover_articles(*, mode: str, request_text: str, urls: list[str], article_
     direct = clean_direct_urls(urls)
     bucket: dict[str, dict] = {url: {"url": url, "title": "", "context": "", "sources": ["直接URL"]} for url in direct}
     plan = {"queries": [], "must_terms": [], "exclude_terms": []}
-    if mode != "url":
+    if mode == "gonline":
+        if request_text.strip():
+            plan = _plan_search(request_text, settings["openai_model"])
+        driver = create_driver()
+        try:
+            pages = [(GONLINE_MEDIA_URL if page == 1 else f"{GONLINE_MEDIA_URL}?page={page}", "GOLD ONLINE", 25) for page in range(1, 9)]
+            for index, (page_url, label, limit) in enumerate(pages, start=1):
+                if progress:
+                    progress(f"候補収集: {label} {index}/{len(pages)}", 5 + int(25 * index / max(1, len(pages))))
+                try:
+                    for item in _collect_page(driver, page_url, label, limit):
+                        _merge(bucket, item)
+                except Exception:
+                    continue
+        finally:
+            driver.quit()
+    elif mode != "url":
         plan = _plan_search(request_text, settings["openai_model"])
         driver = create_driver()
         try:
@@ -324,7 +341,7 @@ def discover_articles(*, mode: str, request_text: str, urls: list[str], article_
         probe_driver.quit()
     if not detailed:
         raise RuntimeError("指定されたYahooニュース記事を確認できませんでした。URLと公開状態を確認してください。")
-    if mode != "url":
+    if mode != "url" and request_text.strip():
         final_ranking = _safe_rank(request_text, detailed, settings["openai_model"])
         relevance = _final_relevance(request_text, detailed, settings["openai_model"])
         for item in detailed:
