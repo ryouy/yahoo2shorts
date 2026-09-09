@@ -7,7 +7,6 @@ backend/data/
 data/app.db*
 data/secrets/
 data/runs/
-data/bgm/
 frontend/node_modules/
 frontend/dist/
 frontend/release/
