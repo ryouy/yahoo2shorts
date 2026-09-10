@@ -1,10 +1,13 @@
 import { ArrowRight, Check, CircleAlert, Clock3, Film, FilePlus2, Newspaper, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import type { ProjectSummary } from '../types'
 import StatusBadge from '../components/StatusBadge'
 
-interface Props { projects: ProjectSummary[]; onNew: () => void; onOpen: (id: string) => void; onDelete: (id: string) => void; onOpenUsedArticles: () => void }
+interface Props { projects: ProjectSummary[]; onNew: () => void; onOpen: (id: string) => void; onDelete: (id: string) => void; onDeleteMany: (ids: string[]) => void; onOpenUsedArticles: () => void }
 
-export default function Dashboard({ projects, onNew, onOpen, onDelete, onOpenUsedArticles }: Props) {
+export default function Dashboard({ projects, onNew, onOpen, onDelete, onDeleteMany, onOpenUsedArticles }: Props) {
+  const [selected, setSelected] = useState<string[]>([])
+  const toggle = (id: string) => setSelected(current => current.includes(id) ? current.filter(x => x !== id) : [...current, id])
   const completed = projects.reduce((sum, project) => sum + Number(project.success_count || 0), 0)
   const errors = projects.reduce((sum, project) => sum + Number(project.error_count || 0), 0)
   const inProgress = projects.find(project => !['completed', 'error'].includes(project.status))
@@ -23,9 +26,16 @@ export default function Dashboard({ projects, onNew, onOpen, onDelete, onOpenUse
       <div className="metric"><span className="metric-icon red"><CircleAlert /></span><div><small>要確認</small><b>{errors}</b></div></div>
     </section>
     <section className="section-card">
-      <div className="section-title"><div><h2>プロジェクト</h2></div><small>{projects.length}件</small></div>
+      <div className="section-title">
+        <div><h2>プロジェクト</h2></div>
+        <div className="inline-actions">
+          {selected.length > 0 && <button className="danger-button" onClick={() => { if (confirm(`選択した${selected.length}件のプロジェクトと成果物を削除しますか？`)) { onDeleteMany(selected); setSelected([]) } }}><Trash2 size={16} /> {selected.length}件を削除</button>}
+          <small>{projects.length}件</small>
+        </div>
+      </div>
       {projects.length === 0 ? <div className="empty-inline"><p>プロジェクトはありません。</p><button className="text-button" onClick={onNew}>新しく作成 <ArrowRight size={16} /></button></div> :
         <div className="project-list">{projects.map(project => <div key={project.id} className="project-line">
+          <input type="checkbox" className="project-select" checked={selected.includes(project.id)} onChange={() => toggle(project.id)} aria-label={`${project.id}を選択`} />
           <button className="project-row" onClick={() => onOpen(project.id)}>
             <span className="project-date"><b>{new Date(project.created_at).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}</b><small>{new Date(project.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</small></span>
             <span className="project-info"><b>{project.id}</b><small>{project.article_total || 0}記事 ・ 成功 {project.success_count || 0} ・ 失敗 {project.error_count || 0}</small></span>

@@ -53,8 +53,16 @@ export default function App() {
       notify('error', error instanceof Error ? error.message : String(error))
     }
   }
+  const deleteManyProjects = async (ids: string[]): Promise<void> => {
+    const results = await Promise.allSettled(ids.map(id => api.delete<void>(`/projects/${id}`)))
+    const succeeded = ids.filter((_, index) => results[index].status === 'fulfilled')
+    const failed = ids.length - succeeded.length
+    setProjects(current => current.filter(project => !succeeded.includes(project.id)))
+    if (failed > 0) notify('error', `${succeeded.length}件を削除しました。${failed}件は処理中のため削除できませんでした。`)
+    else notify('notice', `${succeeded.length}件のプロジェクトを削除しました。`)
+  }
   return <Shell page={route.page} onNavigate={page => navigate(page)}>
-    {route.page === 'dashboard' && <Dashboard projects={projects} onNew={() => navigate('new')} onOpen={openProject} onDelete={deleteProject} onOpenUsedArticles={() => navigate('used-articles')} />}
+    {route.page === 'dashboard' && <Dashboard projects={projects} onNew={() => navigate('new')} onOpen={openProject} onDelete={deleteProject} onDeleteMany={deleteManyProjects} onOpenUsedArticles={() => navigate('used-articles')} />}
     {route.page === 'used-articles' && <UsedArticles onBack={() => navigate('dashboard')} onError={text => notify('error', text)} />}
     {route.page === 'new' && <NewProject onCreated={created} onError={text => notify('error', text)} />}
     {route.page === 'settings' && <SettingsPage onError={text => notify('error', text)} onNotice={text => notify('notice', text)} />}
