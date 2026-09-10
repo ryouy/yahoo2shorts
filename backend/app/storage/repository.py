@@ -132,6 +132,18 @@ class Repository:
         assignments = ",".join(f"{key}=?" for key in values)
         db.execute(f"UPDATE articles SET {assignments} WHERE id=?", (*values.values(), article_id))
 
+    def record_used_article_url(self, url: str, project_id: str, article_id: int, title: str = "") -> None:
+        """Mark a URL as used once its video finishes; kept even if the project is later deleted."""
+        db.execute(
+            "INSERT INTO used_article_urls(url,project_id,article_id,title,created_at) VALUES(?,?,?,?,?) "
+            "ON CONFLICT(url) DO UPDATE SET project_id=excluded.project_id, article_id=excluded.article_id, "
+            "title=excluded.title, created_at=excluded.created_at",
+            (url, project_id, article_id, title, utc_now()),
+        )
+
+    def list_used_article_urls(self) -> set[str]:
+        return {row["url"] for row in db.fetchall("SELECT url FROM used_article_urls")}
+
     def save_script(self, article_id: int, content: dict, approved: bool = False) -> None:
         estimated = float(content.get("estimated_seconds") or 0)
         db.execute(

@@ -193,6 +193,7 @@ class JobRunner:
                     progress=lambda percent, stage, b=base, s=span, p=position: self._update(job_id, project_id, min(99, int(b + percent * s / 100)), f"記事{p}/{len(article_ids)}: {stage}"),
                 )
                 repo.update_article(article_id, status="completed", video_path=str(result["video"]), thumbnail_path=str(result["thumbnail"]), video_duration=result["duration"], error=None)
+                repo.record_used_article_url(article["url"], project_id, article_id, article.get("title", ""))
             except JobCancelledError:
                 repo.update_article(article_id, status="ready_for_video", error=None)
                 repo.update_job(job_id, status="cancelled", stage="キャンセル済み", error=None, log="ユーザーによりキャンセルされました。")
@@ -217,6 +218,7 @@ class JobRunner:
                 progress=lambda percent, stage: self._update(job_id, project_id, percent, stage),
             )
             repo.update_article(article_id, status="completed", video_path=str(result["video"]), thumbnail_path=str(result["thumbnail"]), video_duration=result["duration"], error=None)
+            repo.record_used_article_url(article["url"], project_id, article_id, article.get("title", ""))
             remaining = [a for a in repo.list_articles(project_id) if a["selected"] and a["status"] not in {"completed", "error"}]
             errors = [a for a in repo.list_articles(project_id) if a["selected"] and a["status"] == "error"]
             if not remaining:
@@ -344,6 +346,7 @@ class JobRunner:
                         progress=lambda percent, stage, b=base, s=span, p=position: self._update(job_id, project_id, min(99, int(b + percent * s / 100)), f"記事{p}/{len(approved_ids)}: {stage}"),
                     )
                     repo.update_article(article_id, status="completed", video_path=str(result["video"]), thumbnail_path=str(result["thumbnail"]), video_duration=result["duration"], error=None)
+                    repo.record_used_article_url(article["url"], project_id, article_id, article.get("title", ""))
                 except JobCancelledError:
                     repo.update_article(article_id, status="ready_for_video", error=None)
                     repo.update_job(job_id, status="cancelled", stage="キャンセル済み", error=None, log="ユーザーによりキャンセルされました。")

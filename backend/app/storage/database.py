@@ -91,6 +91,17 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT NOT NULL
 );
 
+-- Persists independently of projects/articles so a URL stays excluded from
+-- future discovery even after its project is deleted. Only written once a
+-- video actually finishes rendering for that article (see update_article).
+CREATE TABLE IF NOT EXISTS used_article_urls (
+  url TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  article_id INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_articles_project ON articles(project_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_project ON jobs(project_id);
 """

@@ -232,3 +232,10 @@ button.primary, a.button.primary { background: #202124; box-shadow: none; font-s
 .sticky-action-buttons { display: flex; gap: 10px; align-items: center; }
 .sticky-action-buttons .secondary { background: transparent; border: 1px solid #ffffff40; color: #fff; }
 .sticky-action-buttons .secondary:hover:not(:disabled) { background: #ffffff14; }
+
+/* Multiple download links side by side in the video card */
+.download-links { display: flex; gap: 14px; }
+
+/* Source article link in the video card */
+.source-url-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; color: #6b7684; font-size: 11px; text-decoration: none; }
+.source-url-link:hover { text-decoration: underline; }

@@ -13,6 +13,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
 from ...storage.files import clean_text
+from ...storage.repository import repo
 from ..openai_service import openai_service
 from .article_fetcher import clean_direct_urls, fetch_yahoo_article
 from .browser import assert_not_geo_blocked, body_text, create_driver
@@ -289,6 +290,12 @@ def discover_articles(*, mode: str, request_text: str, urls: list[str], article_
         finally:
             driver.quit()
     candidates = list(bucket.values())[:150]
+    if mode != "url":
+        # Direct URLs are an explicit user choice and stay eligible even if
+        # reused; auto-sourced candidates skip anything already turned into a
+        # finished video so the same story isn't picked again.
+        used_urls = repo.list_used_article_urls()
+        candidates = [item for item in candidates if item["url"] not in used_urls]
     if not candidates:
         raise RuntimeError("記事候補を取得できませんでした。")
     initial_pool = sorted(

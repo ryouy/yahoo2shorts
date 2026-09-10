@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronRight, Copy, Download, FolderOpen, Image as ImageIcon, Play, RefreshCw, Sparkles, Video, X, Zap } from 'lucide-react'
+import { ArrowLeft, Check, ChevronRight, Copy, Download, ExternalLink, FolderOpen, Image as ImageIcon, Play, RefreshCw, Sparkles, Video, X, Zap } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api'
 import ArticleCard from '../components/ArticleCard'
@@ -20,15 +20,13 @@ export default function ProjectWorkspace({ projectId, initialJob, autoPipeline, 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [copiedId, setCopiedId] = useState<number | null>(null)
-  const [copiedHashtagsId, setCopiedHashtagsId] = useState<number | null>(null)
   const [copiedDescriptionId, setCopiedDescriptionId] = useState<number | null>(null)
   const [settingsValues, setSettingsValues] = useState<Record<string, string | number | boolean>>({})
   const [bgmTracks, setBgmTracks] = useState<string[]>([])
-  const [bgmFolder, setBgmFolder] = useState('')
   const autoPipelineTriggered = useRef(false)
 
   useEffect(() => { api.get<{ values: Record<string, string | number | boolean> }>('/settings').then(v => setSettingsValues(v.values)).catch(() => {}) }, [])
-  useEffect(() => { api.get<{ tracks: string[]; folder: string }>('/bgm-tracks').then(v => { setBgmTracks(v.tracks); setBgmFolder(v.folder) }).catch(() => {}) }, [])
+  useEffect(() => { api.get<{ tracks: string[]; folder: string }>('/bgm-tracks').then(v => setBgmTracks(v.tracks)).catch(() => {}) }, [])
 
   const setArticleBgm = async (article: Article, track: string) => {
     try {
@@ -48,12 +46,15 @@ export default function ProjectWorkspace({ projectId, initialJob, autoPipeline, 
     }
     return template.replace(/\{\{(\w+)\}\}/g, (_match, key) => vars[key] ?? '')
   }
+  const buildTitleWithHashtags = (article: Article) => {
+    const content = article.script?.content
+    if (!content) return ''
+    return [content.youtube_title, (content.youtube_hashtags || []).join(' ')].filter(Boolean).join(' ')
+  }
+  const truncate = (text: string, maxLen: number) => text.length > maxLen ? `${text.slice(0, maxLen)}…` : text
 
   const copyTitle = async (articleId: number, title: string) => {
     try { await navigator.clipboard.writeText(title); setCopiedId(articleId); setTimeout(() => setCopiedId(null), 1500) } catch { onError('コピーに失敗しました。') }
-  }
-  const copyHashtags = async (articleId: number, hashtags: string[]) => {
-    try { await navigator.clipboard.writeText(hashtags.join(' ')); setCopiedHashtagsId(articleId); setTimeout(() => setCopiedHashtagsId(null), 1500) } catch { onError('コピーに失敗しました。') }
   }
   const copyDescription = async (article: Article) => {
     try { await navigator.clipboard.writeText(buildDescription(article)); setCopiedDescriptionId(article.id); setTimeout(() => setCopiedDescriptionId(null), 1500) } catch { onError('コピーに失敗しました。') }
@@ -179,27 +180,26 @@ export default function ProjectWorkspace({ projectId, initialJob, autoPipeline, 
 
     {stage === 'videos' && <section>
       <div className="stage-title"><div><span className="eyebrow">RENDER & REVIEW</span><h2>動画生成</h2></div><div className="inline-actions"><button className="primary" disabled={!!currentJob || !articles.some(article => article.script?.approved)} onClick={startVideoBatch}><Play size={17} /> 承認済みを一括生成</button><button className="secondary" onClick={openFolder}><FolderOpen size={17} /> フォルダを開く</button><a className="button secondary" href={`/api/projects/${projectId}/zip`} onClick={e => { e.preventDefault(); fetch(`/api/projects/${projectId}/zip`, { method: 'POST' }).then(r => r.blob()).then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${projectId}.zip`; a.click(); URL.revokeObjectURL(a.href) }) }}><Download size={17} /> ZIP</a></div></div>
-      {bgmFolder && <p className="bgm-folder-hint">BGMに使う音楽ファイル（mp3/wav/m4a等）はこのフォルダに置いてください: <code>{bgmFolder}</code></p>}
       <div className="video-grid">{articles.filter(article => article.script?.approved || article.video_path).map(article => <article className="video-card" key={article.id}>
         <div className="video-visual">{article.video_path ? <video controls preload="metadata" poster={`/api/articles/${article.id}/thumbnail`}><source src={`/api/articles/${article.id}/video`} type="video/mp4" /></video> : <div className="video-placeholder"><Video /><span>1080 × 1920</span></div>}</div>
         <div className="video-info">
           <div className="video-info-head"><StatusBadge status={article.status} />{article.video_duration && <strong>{Number(article.video_duration).toFixed(1)}秒</strong>}</div>
           <h3>{article.title}</h3>
-          {article.video_path && <a className="thumbnail-download" href={`/api/articles/${article.id}/thumbnail`} download>サムネイルを保存</a>}
+          {article.url && <a className="source-url-link" href={article.url} target="_blank" rel="noreferrer">参考記事を開く <ExternalLink size={12} /></a>}
+          {article.video_path && <div className="download-links">
+            <a className="thumbnail-download" href={`/api/articles/${article.id}/video`} download>動画を保存</a>
+            <a className="thumbnail-download" href={`/api/articles/${article.id}/thumbnail`} download>サムネイルを保存</a>
+          </div>}
           {article.error && <div className="error-note">{article.error}</div>}
           {(article.script?.content.youtube_title || article.script?.content.youtube_summary) && <details className="youtube-panel">
             <summary>YouTube用のタイトル・概要欄</summary>
             {article.script?.content.youtube_title && <div className="youtube-title-box">
-              <small>Shorts用タイトル案</small>
-              <div className="youtube-title-row"><span>{article.script.content.youtube_title}</span><button className="icon-button" aria-label="タイトルをコピー" onClick={() => copyTitle(article.id, article.script!.content.youtube_title!)}>{copiedId === article.id ? <Check size={16} /> : <Copy size={16} />}</button></div>
-            </div>}
-            {!!article.script?.content.youtube_hashtags?.length && <div className="youtube-title-box">
-              <small>概要欄ハッシュタグ案</small>
-              <div className="youtube-title-row"><span>{article.script.content.youtube_hashtags!.join(' ')}</span><button className="icon-button" aria-label="ハッシュタグをコピー" onClick={() => copyHashtags(article.id, article.script!.content.youtube_hashtags!)}>{copiedHashtagsId === article.id ? <Check size={16} /> : <Copy size={16} />}</button></div>
+              <small>Shorts用タイトル案（ハッシュタグ付き）</small>
+              <div className="youtube-title-row"><span>{truncate(buildTitleWithHashtags(article), 60)}</span><button className="icon-button" aria-label="タイトルをコピー" onClick={() => copyTitle(article.id, buildTitleWithHashtags(article))}>{copiedId === article.id ? <Check size={16} /> : <Copy size={16} />}</button></div>
             </div>}
             {article.script?.content.youtube_summary && <div className="youtube-title-box">
-              <div className="youtube-title-row"><small>概要欄 全文</small><button className="icon-button" aria-label="概要欄をコピー" onClick={() => copyDescription(article)}>{copiedDescriptionId === article.id ? <Check size={16} /> : <Copy size={16} />}</button></div>
-              <pre className="youtube-description-text">{buildDescription(article)}</pre>
+              <div className="youtube-title-row"><small>概要欄 全文（一部抜粋）</small><button className="icon-button" aria-label="概要欄をコピー" onClick={() => copyDescription(article)}>{copiedDescriptionId === article.id ? <Check size={16} /> : <Copy size={16} />}</button></div>
+              <pre className="youtube-description-text">{truncate(buildDescription(article), 100)}</pre>
             </div>}
           </details>}
           <div className="bgm-select-row">
