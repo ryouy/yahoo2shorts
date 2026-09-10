@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ExternalLink, FilePlus2, Gauge, Settings } from 'lucide-react'
 
-export type Page = 'dashboard' | 'new' | 'settings' | 'project'
+export type Page = 'dashboard' | 'new' | 'settings' | 'project' | 'used-articles'
 
 interface Props {
   page: Page
@@ -19,9 +19,9 @@ export default function Shell({ page, onNavigate, children }: Props) {
   const isDesktop = navigator.userAgent.includes('Electron')
   return <div className="app-shell">
     <aside className="sidebar">
-      <button className="brand" onClick={() => onNavigate('dashboard')}>
+      <div className="brand">
         <b>yc2ys</b>
-      </button>
+      </div>
       <nav aria-label="メインナビゲーション">
         {items.map(item => {
           const Icon = item.icon

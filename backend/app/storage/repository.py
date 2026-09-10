@@ -144,6 +144,9 @@ class Repository:
     def list_used_article_urls(self) -> set[str]:
         return {row["url"] for row in db.fetchall("SELECT url FROM used_article_urls")}
 
+    def list_used_articles(self) -> list[dict]:
+        return db.fetchall("SELECT url,title,project_id,article_id,created_at FROM used_article_urls ORDER BY created_at DESC")
+
     def save_script(self, article_id: int, content: dict, approved: bool = False) -> None:
         estimated = float(content.get("estimated_seconds") or 0)
         db.execute(

@@ -44,6 +44,11 @@ def list_projects():
     return {"projects": repo.list_projects()}
 
 
+@router.get("/used-articles")
+def list_used_articles():
+    return {"articles": repo.list_used_articles()}
+
+
 @router.post("/projects", status_code=201)
 def create_project(payload: ProjectCreate):
     values = _validate_discovery_input(payload)

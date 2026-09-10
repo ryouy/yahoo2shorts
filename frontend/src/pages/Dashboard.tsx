@@ -2,16 +2,16 @@ import { ArrowRight, Check, CircleAlert, Clock3, Film, FilePlus2, Newspaper, Tra
 import type { ProjectSummary } from '../types'
 import StatusBadge from '../components/StatusBadge'
 
-interface Props { projects: ProjectSummary[]; onNew: () => void; onOpen: (id: string) => void; onDelete: (id: string) => void }
+interface Props { projects: ProjectSummary[]; onNew: () => void; onOpen: (id: string) => void; onDelete: (id: string) => void; onOpenUsedArticles: () => void }
 
-export default function Dashboard({ projects, onNew, onOpen, onDelete }: Props) {
+export default function Dashboard({ projects, onNew, onOpen, onDelete, onOpenUsedArticles }: Props) {
   const completed = projects.reduce((sum, project) => sum + Number(project.success_count || 0), 0)
   const errors = projects.reduce((sum, project) => sum + Number(project.error_count || 0), 0)
   const inProgress = projects.find(project => !['completed', 'error'].includes(project.status))
   return <>
     <header className="page-head dashboard-head">
       <div><span className="eyebrow">DASHBOARD</span><h1>ダッシュボード</h1></div>
-      <button className="primary big" onClick={onNew}><FilePlus2 size={19} /> 新しいShortsを作成</button>
+      <div className="inline-actions"><button className="secondary" onClick={onOpenUsedArticles}>使用済み記事一覧</button><button className="primary big" onClick={onNew}><FilePlus2 size={19} /> 新しいShortsを作成</button></div>
     </header>
     {inProgress ? <button className="active-strip" onClick={() => onOpen(inProgress.id)}>
       <span className="continue-icon"><Clock3 size={21} /></span><span><small>進行中</small><b>{inProgress.id}</b></span><span className="continue-action">開く <ArrowRight size={17} /></span>

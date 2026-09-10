@@ -239,3 +239,18 @@ button.primary, a.button.primary { background: #202124; box-shadow: none; font-s
 /* Source article link in the video card */
 .source-url-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; color: #6b7684; font-size: 11px; text-decoration: none; }
 .source-url-link:hover { text-decoration: underline; }
+
+/* Make the YouTube metadata panel more compact since it's open by default */
+.youtube-panel .youtube-title-box { padding: 8px 10px; margin-top: 6px; }
+.youtube-panel .youtube-title-row span { font-size: 11px; font-weight: 600; }
+.youtube-panel .youtube-description-text { font-size: 10.5px; }
+.youtube-panel .youtube-title-box small { font-size: 9px; }
+
+/* Used articles list page */
+.used-articles-list { display: flex; flex-direction: column; }
+.used-article-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px; border-bottom: 1px solid #eceef2; }
+.used-article-row:last-child { border-bottom: 0; }
+.used-article-row b { display: block; font-size: 13px; color: #1d2430; }
+.used-article-row small { display: block; color: #9297a1; font-size: 11px; margin-top: 3px; }
+.used-article-row a { display: inline-flex; align-items: center; gap: 5px; color: #1769e0; font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.used-article-row a:hover { text-decoration: underline; }

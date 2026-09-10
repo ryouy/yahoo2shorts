@@ -6,13 +6,14 @@ import Dashboard from './pages/Dashboard'
 import NewProject from './pages/NewProject'
 import ProjectWorkspace from './pages/ProjectWorkspace'
 import SettingsPage from './pages/Settings'
+import UsedArticles from './pages/UsedArticles'
 import type { Job, Project, ProjectSummary } from './types'
 
 function routeFromHash(): { page: Page; projectId?: string } {
   const value = location.hash.replace(/^#\/?/, '')
   if (value.startsWith('project/')) return { page: 'project', projectId: value.split('/')[1] }
   if (value === 'system') return { page: 'settings' }
-  if (['dashboard', 'new', 'settings'].includes(value)) return { page: value as Page }
+  if (['dashboard', 'new', 'settings', 'used-articles'].includes(value)) return { page: value as Page }
   return { page: 'dashboard' }
 }
 
@@ -53,7 +54,8 @@ export default function App() {
     }
   }
   return <Shell page={route.page} onNavigate={page => navigate(page)}>
-    {route.page === 'dashboard' && <Dashboard projects={projects} onNew={() => navigate('new')} onOpen={openProject} onDelete={deleteProject} />}
+    {route.page === 'dashboard' && <Dashboard projects={projects} onNew={() => navigate('new')} onOpen={openProject} onDelete={deleteProject} onOpenUsedArticles={() => navigate('used-articles')} />}
+    {route.page === 'used-articles' && <UsedArticles onBack={() => navigate('dashboard')} onError={text => notify('error', text)} />}
     {route.page === 'new' && <NewProject onCreated={created} onError={text => notify('error', text)} />}
     {route.page === 'settings' && <SettingsPage onError={text => notify('error', text)} onNotice={text => notify('notice', text)} />}
     {route.page === 'project' && route.projectId && <ProjectWorkspace projectId={route.projectId} initialJob={initialJob} autoPipeline={autoPipelineId === route.projectId} onBack={() => { loadProjects(); navigate('dashboard') }} onError={text => notify('error', text)} onNotice={text => notify('notice', text)} />}

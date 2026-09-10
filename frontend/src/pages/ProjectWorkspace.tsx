@@ -184,21 +184,21 @@ export default function ProjectWorkspace({ projectId, initialJob, autoPipeline, 
         <div className="video-visual">{article.video_path ? <video controls preload="metadata" poster={`/api/articles/${article.id}/thumbnail`}><source src={`/api/articles/${article.id}/video`} type="video/mp4" /></video> : <div className="video-placeholder"><Video /><span>1080 × 1920</span></div>}</div>
         <div className="video-info">
           <div className="video-info-head"><StatusBadge status={article.status} />{article.video_duration && <strong>{Number(article.video_duration).toFixed(1)}秒</strong>}</div>
-          <h3>{article.title}</h3>
+          <h3>{article.script?.content.youtube_title || article.title}</h3>
           {article.url && <a className="source-url-link" href={article.url} target="_blank" rel="noreferrer">参考記事を開く <ExternalLink size={12} /></a>}
           {article.video_path && <div className="download-links">
             <a className="thumbnail-download" href={`/api/articles/${article.id}/video`} download>動画を保存</a>
             <a className="thumbnail-download" href={`/api/articles/${article.id}/thumbnail`} download>サムネイルを保存</a>
           </div>}
           {article.error && <div className="error-note">{article.error}</div>}
-          {(article.script?.content.youtube_title || article.script?.content.youtube_summary) && <details className="youtube-panel">
+          {(article.script?.content.youtube_title || article.script?.content.youtube_summary) && <details className="youtube-panel" open>
             <summary>YouTube用のタイトル・概要欄</summary>
             {article.script?.content.youtube_title && <div className="youtube-title-box">
-              <small>Shorts用タイトル案（ハッシュタグ付き）</small>
+              <small>Shorts用タイトル案</small>
               <div className="youtube-title-row"><span>{truncate(buildTitleWithHashtags(article), 60)}</span><button className="icon-button" aria-label="タイトルをコピー" onClick={() => copyTitle(article.id, buildTitleWithHashtags(article))}>{copiedId === article.id ? <Check size={16} /> : <Copy size={16} />}</button></div>
             </div>}
             {article.script?.content.youtube_summary && <div className="youtube-title-box">
-              <div className="youtube-title-row"><small>概要欄 全文（一部抜粋）</small><button className="icon-button" aria-label="概要欄をコピー" onClick={() => copyDescription(article)}>{copiedDescriptionId === article.id ? <Check size={16} /> : <Copy size={16} />}</button></div>
+              <div className="youtube-title-row"><small>概要欄</small><button className="icon-button" aria-label="概要欄をコピー" onClick={() => copyDescription(article)}>{copiedDescriptionId === article.id ? <Check size={16} /> : <Copy size={16} />}</button></div>
               <pre className="youtube-description-text">{truncate(buildDescription(article), 100)}</pre>
             </div>}
           </details>}
