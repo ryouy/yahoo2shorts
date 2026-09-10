@@ -1,4 +1,4 @@
-import { Check, Crown, ExternalLink, Link2, MessageSquare, Minus, Plus, Search, Sparkles, X, Zap } from 'lucide-react'
+import { Check, ClipboardPaste, Crown, ExternalLink, Link2, MessageSquare, Minus, Plus, Search, Sparkles, X, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '../api'
 import type { Job, Project } from '../types'
@@ -15,6 +15,13 @@ export default function NewProject({ onCreated, onError }: Props) {
   const [busy, setBusy] = useState(false)
 
   const selectGonline = () => { setMode('gonline'); setVideoMode('gold') }
+
+  const pasteUrl = async (index: number) => {
+    try {
+      const text = (await navigator.clipboard.readText()).trim()
+      if (text) setUrls(urls.map((v, i) => i === index ? text : v))
+    } catch { onError('クリップボードを読み取れませんでした。') }
+  }
 
   const submit = async (autoPipeline = false) => {
     setBusy(true)
@@ -45,6 +52,7 @@ export default function NewProject({ onCreated, onError }: Props) {
         <label className="field-label">Yahooニュースの記事URL</label>
         <div className="url-list">{urls.map((url, index) => <div className="url-row" key={index}>
           <Link2 size={18} /><input type="url" value={url} placeholder="https://news.yahoo.co.jp/articles/..." onChange={event => setUrls(urls.map((v, i) => i === index ? event.target.value : v))} />
+          <button className="icon-button" aria-label="貼り付け" onClick={() => pasteUrl(index)}><ClipboardPaste size={18} /></button>
           {urls.length > 1 && <button className="icon-button" aria-label="URLを削除" onClick={() => setUrls(urls.filter((_, i) => i !== index))}><X size={18} /></button>}
         </div>)}</div>
         <button className="subtle" onClick={() => setUrls([...urls, ''])}><Plus size={16} /> URLを追加</button>
