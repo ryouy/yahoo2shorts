@@ -11,7 +11,6 @@ export default function NewProject({ onCreated, onError }: Props) {
   const [urls, setUrls] = useState([''])
   const [requestText, setRequestText] = useState('')
   const [count, setCount] = useState(3)
-  const [advanced, setAdvanced] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const selectGonline = () => { setMode('gonline'); setVideoMode('gold') }
@@ -65,8 +64,6 @@ export default function NewProject({ onCreated, onError }: Props) {
         <textarea id="request" rows={6} value={requestText} onChange={event => setRequestText(event.target.value)} placeholder="例：生成AI関連の記事" />
         <div className="count-row"><div><b>記事数</b></div><div className="stepper"><button onClick={() => setCount(Math.max(1, count - 1))}><Minus size={16} /></button><b>{count}</b><button onClick={() => setCount(Math.min(10, count + 1))}><Plus size={16} /></button></div></div>
       </>}
-      <button className="advanced-toggle" onClick={() => setAdvanced(!advanced)}>詳細設定 <span>{advanced ? '−' : '+'}</span></button>
-      {advanced && <div className="advanced-note">設定画面で変更できます。</div>}
       <div className="form-actions">
         <button className="secondary big" disabled={busy || !canSubmit} onClick={() => submit(true)}><Zap size={18} /> 動画生成まで一気に実行</button>
         <button className="primary big" disabled={busy || !canSubmit} onClick={() => submit(false)}><Sparkles size={18} /> {busy ? '準備中…' : mode === 'url' ? '記事を取得' : '記事を探す'}</button>
