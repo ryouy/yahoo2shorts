@@ -1,4 +1,4 @@
-import { CheckCircle2, Eye, EyeOff, KeyRound, RotateCw, Save, Trash2, Zap } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, RotateCw, Save, Trash2, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import SystemCheck from './SystemCheck'
@@ -75,8 +75,8 @@ export default function SettingsPage({ onError, onNotice }: Props) {
   if (!data) return <div className="loading">設定を読み込み中…</div>
   return <>
     <header className="page-head compact-head"><div><span className="eyebrow">PREFERENCES</span><h1>設定</h1></div><button className="primary" onClick={save}><Save size={18} /> 保存</button></header>
-    <section className="section-card key-card">
-      <div className="setting-heading"><span className="setting-icon green"><KeyRound /></span><div><h2>OpenAI</h2></div><span className={`connection ${data.openai.registered ? 'ok' : ''}`}>{data.openai.registered ? <><CheckCircle2 size={15} /> 登録済み</> : '未登録'}</span></div>
+    <details className="settings-disclosure">
+      <summary><span className="summary-title-group"><span>OpenAI</span><span className={`connection ${data.openai.registered ? 'ok' : ''}`}>{data.openai.registered ? <><CheckCircle2 size={15} /> 登録済み</> : '未登録'}</span></span><span>⌄</span></summary>
       <div className="key-content">
         {data.openai.registered && <div className="masked-key"><span>API Key</span><code>{data.openai.masked_key}</code></div>}
         <label className="field-label" htmlFor="api-key">{data.openai.registered ? '新しいキーへ変更' : 'API Key'}</label>
@@ -85,7 +85,7 @@ export default function SettingsPage({ onError, onNotice }: Props) {
       </div>
       <div className="setting-row single"><label>使用モデル<span>OpenAI Responses API</span></label><input value={String(data.values.openai_model)} onChange={e => update('openai_model', e.target.value)} /></div>
       <div className="setting-row single"><label>バックエンド<span>設定変更が反映されない場合に再起動</span></label><button className="secondary" onClick={restartBackend}><RotateCw size={16} /> 再起動</button></div>
-    </section>
+    </details>
     {groups.map(group => <details className="settings-disclosure" key={group.name} open={group.name === '基本設定'}>
       <summary><span>{group.name}</span><span>⌄</span></summary>
       <div className="settings-grid">{group.fields.map(([key, label, type]) => <div className="setting-row" key={key}>

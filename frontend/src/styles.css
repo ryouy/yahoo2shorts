@@ -255,25 +255,10 @@ button.primary, a.button.primary { background: #202124; box-shadow: none; font-s
 .used-article-row a { display: inline-flex; align-items: center; gap: 5px; color: #1769e0; font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
 .used-article-row a:hover { text-decoration: underline; }
 
-/* Compact OpenAI settings card */
-.key-card { padding: 16px 18px; }
-.key-card .setting-heading { padding-bottom: 10px; margin-bottom: 12px; }
-.key-card .setting-icon { width: 30px; height: 30px; border-radius: 8px; margin-right: 8px; }
-.key-card .setting-icon svg { width: 16px; height: 16px; }
-.key-card .setting-heading h2 { font-size: 13px; }
-.key-card .key-content { padding: 12px; margin-bottom: 10px; }
-.key-card .masked-key { margin-bottom: 8px; }
-.key-card .field-label { font-size: 11px; }
-.key-card .key-input { margin-bottom: 8px; }
-.key-card .key-input input { height: 34px; font-size: 12px; }
-.key-card .key-input button { width: 28px; height: 28px; top: 3px; }
-.key-card .key-input svg { width: 14px; }
-.key-card .inline-actions button { padding: 7px 11px; font-size: 11px; }
-.key-card .setting-row.single { min-height: 44px; }
-.key-card .setting-row.single label { font-size: 11px; }
-.key-card .setting-row.single input { height: 32px; font-size: 12px; }
-
 /* Checkbox for multi-select delete on the dashboard project list */
 .project-line { display: flex; align-items: center; gap: 4px; }
 .project-select { flex-shrink: 0; width: 16px; height: 16px; margin-left: 4px; cursor: pointer; accent-color: #1d2430; }
 .project-line .project-row { flex: 1; min-width: 0; }
+
+/* OpenAI status badge inline with its disclosure summary label */
+.summary-title-group { display: flex; align-items: center; gap: 10px; }
