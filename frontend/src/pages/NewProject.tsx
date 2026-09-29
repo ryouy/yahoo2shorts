@@ -36,7 +36,7 @@ export default function NewProject({ onCreated, onError }: Props) {
   const canSubmit = mode === 'url' ? urls.some(url => url.trim()) : mode === 'request' ? Boolean(requestText.trim()) : true
 
   return <div className="new-project-page">
-    <header className="page-head compact-head"><div><span className="eyebrow">NEW PROJECT</span><h1>新しいShortsを作成</h1></div><div className="new-project-actions"><a className="yahoo-link" href="https://news.yahoo.co.jp/" target="_blank" rel="noreferrer">ニュース <ExternalLink size={14} /></a><span className="step-caption"><Check size={15} /> 1 / 3</span></div></header>
+    <header className="page-head compact-head"><div><span className="eyebrow">NEW PROJECT</span><h1>新しいShortsを作成</h1></div><div className="new-project-actions"><a className="yahoo-link" href="https://news.yahoo.co.jp/media/gonline" target="_blank" rel="noreferrer">ニュース <ExternalLink size={14} /></a><span className="step-caption"><Check size={15} /> 1 / 3</span></div></header>
     <div className="mode-grid mode-grid-three mode-switch">
       <button className={mode === 'request' ? 'mode-card active' : 'mode-card'} onClick={() => setMode('request')}><Search /><b>テーマ検索</b></button>
       <button className={mode === 'url' ? 'mode-card active' : 'mode-card'} onClick={() => setMode('url')}><Link2 /><b>URL指定</b></button>
